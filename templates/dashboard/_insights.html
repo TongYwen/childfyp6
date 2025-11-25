@@ -1,0 +1,115 @@
+<div class="container-fluid mt-3">
+    <h3 class="mb-3">
+        AI Insights for {{ selected_child.name }}
+    </h3>
+
+    <!-- AI SUMMARY CARD -->
+    <div class="card mb-3">
+        <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+  <span>AI Summary</span>
+  <div class="d-flex align-items-center gap-2">
+    {% if last_generated %}
+      <small class="text-white-50">
+        Last generated: {{ last_generated.strftime('%Y-%m-%d %H:%M') }}
+      </small>
+                {% endif %}
+        <a href="{{ url_for('ai_insights', regen=1) }}" class="btn btn-sm btn-light">
+      Regenerate
+        </a>
+        </div>
+        </div>
+
+        <div class="card-body">
+            {% if ai_summary %}
+                <p class="mb-0">{{ ai_summary }}</p>
+            {% else %}
+                <p class="text-muted mb-0">
+                    No AI summary available yet. Please ensure this child has some academic scores,
+                    and that the AI service is working.
+                </p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- EXISTING Strengths / Weaknesses layout -->
+    <div class="row">
+        <!-- Strengths -->
+        <div class="col-md-6 mb-3">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-success text-white">
+                    <strong>Strengths</strong>
+                </div>
+                <div class="card-body">
+                    {% if strengths %}
+                        <ul class="mb-0">
+                            {% for s in strengths %}
+                                <li>{{ s }}</li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p class="text-muted mb-0">
+                            No strong subjects identified yet. Please add some academic scores first.
+                        </p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Weaknesses -->
+        <div class="col-md-6 mb-3">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-warning">
+                    <strong>Areas to Improve</strong>
+                </div>
+                <div class="card-body">
+                    {% if weaknesses %}
+                        <ul class="mb-0">
+                            {% for w in weaknesses %}
+                                <li>{{ w }}</li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p class="text-muted mb-0">
+                            No weak subjects detected yet. Great job! 🎉
+                        </p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Optional: show raw scores table -->
+    <div class="card mt-3">
+        <div class="card-header">
+            <strong>Academic Records Used for This Insight</strong>
+        </div>
+        <div class="card-body">
+            {% if scores %}
+                <div class="table-responsive">
+                    <table class="table table-sm table-bordered align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>Subject</th>
+                                <th>Score</th>
+                                <th>Date</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in scores %}
+                                <tr>
+                                    <td>{{ row.subject }}</td>
+                                    <td>{{ row.score }}</td>
+                                    <td>{{ row.date }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p class="text-muted mb-0">
+                    No academic records found yet for this child.
+                </p>
+            {% endif %}
+        </div>
+    </div>
+</div>

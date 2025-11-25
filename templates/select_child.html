@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="select-child">
+  <div class="auth-box">
+    <h2 class="mb-4 text-center">Select Your Child</h2>
+
+    <form method="POST">
+      <div class="mb-3">
+        <label for="childSelect" class="form-label">Choose Child</label>
+        <select id="childSelect" name="child_id" class="form-select" required>
+          <option value="" disabled selected>-- Select --</option>
+          {% for child in children %}
+            <option value="{{ child.id }}">{{ child.name }} (Age: {{ child.age }})</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="text-center">
+        <button type="submit" class="btn btn-primary px-4">Continue</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  $(document).ready(function() {
+    $('#childSelect').select2({
+      placeholder: "Search or select a child",
+      width: '100%'
+    });
+  });
+</script>
+{% endblock %}

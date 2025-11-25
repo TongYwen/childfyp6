@@ -1,0 +1,88 @@
+<h3>Recommendations</h3>
+
+<!-- Tutoring Card -->
+<div class="card shadow-sm mb-4">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center">
+      <h5 class="card-title mb-0">Personalized Support Plan</h5>
+      <div>
+        <span class="badge bg-info text-dark me-2">
+          AI Generated
+        </span>
+        <!-- Reload (regen) button -->
+        <button id="regenBtn" class="btn btn-outline-primary btn-sm" title="Regenerate Recommendations">
+          <i class="fa fa-sync-alt"></i>
+        </button>
+      </div>
+    </div>
+
+    {% if last_generated %}
+      <p class="text-muted small mb-2">
+        Last generated on {{ last_generated.strftime('%Y-%m-%d %H:%M:%S') }}
+      </p>
+    {% endif %}
+
+    <!-- AI result section -->
+    <div id="tutoringResult" class="mt-3">
+      {% if tutoring_summary %}
+        {{ tutoring_summary|safe }}
+      {% else %}
+        <p class="text-muted">No Recommendations available yet.</p>
+      {% endif %}
+    </div>
+
+    <!-- Loading indicator -->
+    <div id="loadingText" class="text-center text-primary fw-bold mt-3" style="display:none;">
+      <i class="fa fa-spinner fa-spin me-2"></i> Generating personalized tutoring suggestions...
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const regenBtn = document.getElementById("regenBtn");
+  const resultDiv = document.getElementById("tutoringResult");
+  const loadingText = document.getElementById("loadingText");
+
+  regenBtn.addEventListener("click", async function() {
+    regenBtn.disabled = true;
+    regenBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i>';
+    loadingText.style.display = "block";
+    if (resultDiv) resultDiv.style.opacity = "0.5";
+
+    try {
+      const res = await fetch(window.location.pathname + "?regen=1", {
+        headers: { "X-Requested-With": "XMLHttpRequest" }
+      });
+      const data = await res.json();
+
+      if (data.error === "token_limit") {
+        Swal.fire({
+          icon: "error",
+          title: "Gemini API Limit Reached",
+          text: "Please update your Google API key in settings."
+        });
+      } else {
+        if (data.tutoring_summary) {
+          resultDiv.innerHTML = data.tutoring_summary;
+        }
+        if (data.last_generated) {
+          const small = document.querySelector(".small.mb-2");
+          if (small) small.textContent = "Last generated on " + data.last_generated;
+        }
+      }
+    } catch (err) {
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "Failed to regenerate recommendations. Please try again."
+      });
+    } finally {
+      regenBtn.disabled = false;
+      regenBtn.innerHTML = '<i class="fa fa-sync-alt"></i>';
+      loadingText.style.display = "none";
+      if (resultDiv) resultDiv.style.opacity = "1";
+    }
+  });
+});
+</script>

@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container-fluid">
+  <div class="row g-0">
+    <!-- Sidebar -->
+<div class="col-md-3 col-lg-2 bg-light sidebar py-4 shadow-sm min-vh-100" id="sidebar">
+
+  <ul class="nav flex-column">
+    <!-- Dashboard -->
+    <li class="nav-item">
+      <a class="nav-link {% if active == 'dashboard' %}active-link{% endif %}"
+         href="{{ url_for('dashboard') }}">
+        <i class="fas fa-home me-2"></i>
+        <span class="nav-text">Dashboard</span>
+      </a>
+    </li>
+
+    <!-- Academic Progress -->
+    <li class="nav-item">
+      <a class="nav-link {% if active == 'academic' %}active-link{% endif %}"
+         href="{{ url_for('academic_progress') }}">
+        <i class="fas fa-chart-line me-2"></i>
+        <span class="nav-text">Academic Progress Tracker</span>
+      </a>
+    </li>
+
+    <!-- Preschool performance -->
+    <li class="nav-item">
+      <a class="nav-link {% if active == 'preschool' %}active-link{% endif %}"
+         href="{{ url_for('preschool_tracker') }}">
+        <i class="fas fa-child me-2"></i>
+        <span class="nav-text">Preschool Performance Tracker</span>
+      </a>
+    </li>
+
+    <!-- Learning style -->
+    <li class="nav-item">
+      <a class="nav-link {% if active == 'learning' %}active-link{% endif %}"
+         href="{{ url_for('learning_style') }}">
+        <i class="fas fa-brain me-2"></i>
+        <span class="nav-text">Learning Style Analyzer</span>
+      </a>
+    </li>
+
+    <!-- Tutoring recommendations -->
+    <li class="nav-item">
+      <a class="nav-link {% if active == 'tutoring' %}active-link{% endif %}"
+         href="{{ url_for('tutoring_recommendations') }}">
+        <i class="fas fa-chalkboard-teacher me-2"></i>
+        <span class="nav-text">Recommendations</span>
+      </a>
+    </li>
+
+    <!-- AI Insights -->
+    <li class="nav-item">
+      <a class="nav-link {% if active == 'insights' %}active-link{% endif %}"
+         href="{{ url_for('ai_insights') }}">
+        <i class="fas fa-lightbulb me-2"></i>
+        <span class="nav-text">AI Insights</span>
+      </a>
+    </li>
+
+    <!-- Personalized Learning Plan -->
+    <li class="nav-item">
+      <a class="nav-link {% if active == 'learning_plan' %}active-link{% endif %}"
+         href="{{ url_for('learning_plan') }}">
+        <i class="fas fa-clipboard-list me-2"></i>
+        <span class="nav-text">Learning Plan</span>
+      </a>
+    </li>
+
+    <!-- Educational Resources Hub -->
+    <li class="nav-item">
+      <a class="nav-link {% if active == 'resources' %}active-link{% endif %}"
+         href="{{ url_for('resources_hub') }}">
+        <i class="fas fa-book me-2"></i>
+        <span class="nav-text">Educational Resources Hub</span>
+      </a>
+    </li>
+  </ul>
+</div>
+
+
+    <!-- Main Content -->
+    <div class="col-md-9 col-lg-10 p-4">
+      {% include content_template %}
+    </div>
+  </div>
+</div>
+{% endblock %}

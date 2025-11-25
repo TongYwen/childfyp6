@@ -1,0 +1,7 @@
+Flask
+mysql-connector-python
+flask-bcrypt
+flask-login
+flask-mail
+itsdangerous
+python-dotenv

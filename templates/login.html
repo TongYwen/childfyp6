@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex align-items-center justify-content-center vh-100 bg-cover">
+  <div class="auth-box">
+    <h3 class="text-center mb-3">Login</h3>
+
+    <!-- Flash messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, msg in messages %}
+          <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+            {{ msg }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <form method="POST">
+      <div class="mb-3">
+        <input type="email" class="form-control" name="email" placeholder="Email" required>
+      </div>
+      <div class="mb-3">
+        <input type="password" class="form-control" name="password" placeholder="Password" required>
+      </div>
+      <button type="submit" class="btn btn-primary w-100">Log In</button>
+    </form>
+
+    <div class="text-center mt-4">
+      <div class="mb-2">
+        <small>
+          Don’t have an account?
+          <a href="{{ url_for('register_select') }}" class="auth-link">Sign Up</a>
+
+        </small>
+      </div>
+      <div>
+        <small>
+          <a href="{{ url_for('forgot') }}" class="auth-link">Forgot Password?</a>
+        </small>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

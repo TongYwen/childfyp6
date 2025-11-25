@@ -1,0 +1,7 @@
+uploads/ 
+instance/ 
+__pycache__/ 
+.venv/
+.env 
+.env.txt 
+

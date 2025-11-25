@@ -1,0 +1,114 @@
+<h3>Dashboard</h3>
+
+<!-- Top Card: Child Info -->
+<div class="card mb-4 shadow-sm">
+  <div class="card-body">
+    <h5 class="card-title">{{ selected_child.name }}</h5>
+    <p><strong>Age:</strong> {{ selected_child.age }}</p>
+    <p><strong>Grade Level:</strong> {{ selected_child.grade_level }}</p>
+    <p><strong>Gender:</strong> {{ selected_child.gender }}</p>
+  </div>
+</div>
+
+<!-- 4-Card Grid -->
+<div class="row g-4">
+  <!-- Academic Progress (Multi-line chart) -->
+  <div class="col-md-6">
+    <div class="card shadow-sm h-100">
+      <div class="card-body">
+        <h5 class="card-title">Academic Progress</h5>
+        <canvas id="academicChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Preschool Performance Tracker (Text) -->
+  <div class="col-md-6">
+    <div class="card shadow-sm h-100">
+      <div class="card-body">
+        <h5 class="card-title">Preschool Performance Tracker</h5>
+        <ul>
+          {% for p in preschool %}
+            {{ p|safe }}
+          {% else %}
+            <li class="text-muted">No benchmark comparisons yet</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Learning Style Analyzer -->
+  <div class="col-md-6">
+    <div class="card shadow-sm h-100">
+      <div class="card-body">
+        <h5 class="card-title">Learning Style Analyzer</h5>
+        <ul>
+          {% for l in learning %}
+            {{ l|safe }}
+          {% else %}
+            <li class="text-muted">No observations yet</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tutoring Recommendations -->
+  <div class="col-md-6">
+    <div class="card shadow-sm h-100">
+      <div class="card-body">
+        <h5 class="card-title"> Recommendations</h5>
+        <ul>
+          {% for t in tutoring %}
+            {{ t|safe }}
+          {% else %}
+            <li class="text-muted">No recommendations yet</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const academicCtx = document.getElementById('academicChart');
+  if (academicCtx) {
+    // Prepare unique sorted labels
+    const labels = [...new Set([
+      {% for row in scores %}
+        '{{ row.date_str }}',
+      {% endfor %}
+    ])];
+
+    const subjects = {{ subjects|tojson }};
+    const allScores = {{ scores|tojson }};
+
+    const datasets = subjects.map((subject, idx) => {
+      return {
+        label: subject,
+        data: labels.map(label => {
+          const entry = allScores.find(r => r.subject === subject && r.date_str === label);
+          return entry ? entry.score : null;
+        }),
+        borderColor: `hsl(${idx * 60}, 70%, 50%)`,
+        tension: 0.3,
+        fill: false
+      };
+    });
+
+    new Chart(academicCtx, {
+      type: 'line',
+      data: { labels, datasets },
+      options: {
+        responsive: true,
+        plugins: { legend: { position: 'bottom' } },
+        scales: { y: { beginAtZero: true, max: 100 } }
+      }
+    });
+  }
+});
+</script>
+

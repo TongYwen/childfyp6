@@ -1,0 +1,383 @@
+<h3>Learning Style Analyzer</h3>
+
+<!-- Top Card: Learning Strategies -->
+<div class="card shadow-sm mb-4">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center">
+      <h5 class="card-title">Learning Strategies</h5>
+      <div>
+        <span class="badge bg-info text-dark me-2">
+          AI Generated
+        </span>
+        <!-- Regenerate button with reload icon -->
+        <button id="regenBtn" class="btn btn-outline-primary btn-sm" title="Regenerate Analysis">
+          <i class="fa fa-sync-alt"></i>
+        </button>
+      </div>
+    </div>
+
+    {% if last_generated %}
+      <p class="text-muted small mb-2">
+        Last generated on {{ last_generated.strftime('%Y-%m-%d %H:%M:%S') }}
+      </p>
+    {% endif %}
+
+    <!-- AI result area -->
+    {% if benchmark_summary %}
+      <div id="benchmarkResult">{{ benchmark_summary|safe }}</div>
+    {% else %}
+      <p class="text-muted">No AI insights available yet.</p>
+    {% endif %}
+
+    <!-- Loading text -->
+    <div id="loadingText" class="text-center text-primary fw-bold mt-3" style="display:none;">
+      <i class="fa fa-spinner fa-spin me-2"></i> Analyzing learning style... please wait.
+    </div>
+  </div>
+</div>
+
+<!-- Action Buttons -->
+<div class="d-flex justify-content-center gap-5 mb-4">
+  <!-- Take Test Button -->
+  <button class="btn btn-primary rounded-circle btn-lg d-flex align-items-center justify-content-center" 
+          style="width:80px; height:80px;" 
+          data-bs-toggle="modal" data-bs-target="#selectTestModal" title="Take Test">
+    <i class="fa-solid fa-clipboard-question fa-2x"></i>
+  </button>
+
+  <!-- Input Observation Button -->
+  <button class="btn btn-success rounded-circle btn-lg d-flex align-items-center justify-content-center" 
+          style="width:80px; height:80px;" 
+          data-bs-toggle="modal" data-bs-target="#inputObservationModal" title="Input Observation">
+    <i class="fa-solid fa-pencil fa-2x"></i>
+  </button>
+</div>
+
+<!-- Tabs for Test Answers and Observations -->
+<ul class="nav nav-tabs mt-4" id="learningTabs" role="tablist">
+  <li class="nav-item" role="presentation">
+    <button class="nav-link active" id="test-answers-tab" data-bs-toggle="tab" data-bs-target="#test-answers" type="button" role="tab">
+      Test Answers
+    </button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link" id="observations-tab" data-bs-toggle="tab" data-bs-target="#observations" type="button" role="tab">
+      Observations
+    </button>
+  </li>
+</ul>
+
+<div class="tab-content mt-3">
+  <!-- Test Answers Tab -->
+  <div class="tab-pane fade show active" id="test-answers" role="tabpanel">
+    {% if test_answers %}
+      <div class="accordion" id="testAnswersAccordion">
+        {% set tests_grouped = {} %}
+        {% for ans in test_answers %}
+          {% if ans.test_id not in tests_grouped %}
+            {% set tests_grouped = tests_grouped.update({ans.test_id: [ans]}) or tests_grouped %}
+          {% else %}
+            {% set _ = tests_grouped[ans.test_id].append(ans) %}
+          {% endif %}
+        {% endfor %}
+
+        {% for test_id, answers in tests_grouped.items() %}
+          <div class="accordion-item">
+            <h2 class="accordion-header" id="heading{{ test_id }}">
+              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{{ test_id }}" aria-expanded="false" aria-controls="collapse{{ test_id }}">
+                {{ answers[0].test_name }}
+              </button>
+            </h2>
+            <div id="collapse{{ test_id }}" class="accordion-collapse collapse" aria-labelledby="heading{{ test_id }}" data-bs-parent="#testAnswersAccordion">
+              <div class="accordion-body p-0">
+                <table class="table table-bordered mb-0">
+                  <thead class="table-light">
+                    <tr>
+                      <th>Question</th>
+                      <th>Answer</th>
+                      <th>Date</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for ans in answers %}
+                      <tr>
+                        <td>{{ ans.question_text }}</td>
+                        <td>{{ ans.answer }}</td>
+                        <td>{{ ans.created_at.strftime('%Y-%m-%d') }}</td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="text-center text-muted">No test answers recorded yet.</p>
+    {% endif %}
+  </div>
+
+  <!-- Observations Tab -->
+  <div class="tab-pane fade" id="observations" role="tabpanel">
+    {% if learning_notes %}
+      <div class="table-responsive">
+        <table class="table table-bordered table-hover">
+          <thead class="table-light">
+            <tr>
+              <th>Observation</th>
+              <th>Date</th>
+              <th class="text-center">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for note in learning_notes %}
+              <tr>
+                <td>{{ note.observation }}</td>
+                <td>{{ note.created_at.strftime('%Y-%m-%d') }}</td>
+                <td class="text-center">
+                  <form method="POST" action="{{ url_for('delete_learning_observation', observation_id=note.id) }}" class="delete-observation-form">
+                    <button type="submit" class="btn btn-sm btn-danger">
+                      <i class="fa-solid fa-trash"></i>
+                    </button>
+                  </form>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="text-center text-muted">No observations recorded yet.</p>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Modal 1: Select Test -->
+<div class="modal fade" id="selectTestModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Select a Test</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">Choose Test</label>
+          <select id="testSelectDropdown" class="form-select" required>
+            <option value="">-- Select Test --</option>
+            {% for test in user_tests %}
+              <option value="{{ test.id }}">{{ test.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-primary" id="openTestQuestionsBtn" disabled>Next</button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal 2: Test Questions -->
+<div class="modal fade" id="testQuestionsModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <form method="POST" id="testQuestionsForm" action="{{ url_for('take_learning_test', child_id=selected_child.id) }}">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Answer Test Questions</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" name="test_id" id="selectedTestId">
+          <div id="testQuestionsContainer"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-success">Submit Answers</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Input Observation Modal -->
+<div class="modal fade" id="inputObservationModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <form method="POST" action="{{ url_for('submit_learning_observation', child_id=selected_child.id) }}">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Submit Observation</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">Observation</label>
+            <textarea name="observation" class="form-control" placeholder="E.g. Prefers hands-on activities" required></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-success">Save</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const regenBtn = document.getElementById("regenBtn");
+  const resultDiv = document.getElementById("benchmarkResult");
+  const loadingText = document.getElementById("loadingText");
+  const testSelectDropdown = document.getElementById('testSelectDropdown');
+  const openTestQuestionsBtn = document.getElementById('openTestQuestionsBtn');
+  const testQuestionsModal = new bootstrap.Modal(document.getElementById('testQuestionsModal'));
+  const testQuestionsContainer = document.getElementById('testQuestionsContainer');
+  const selectedTestIdInput = document.getElementById('selectedTestId');
+
+  // Base /static/ path for media
+  const STATIC_ROOT = "{{ url_for('static', filename='') }}";  // e.g. "/static/"
+
+  // ---------- Select Test Modal ----------
+  testSelectDropdown.addEventListener('change', function() {
+    openTestQuestionsBtn.disabled = !this.value;
+  });
+
+  openTestQuestionsBtn.addEventListener('click', function() {
+    const testId = testSelectDropdown.value;
+    if (!testId) return;
+
+    selectedTestIdInput.value = testId;
+    testQuestionsContainer.innerHTML = '';
+
+    // Fetch questions (with media)
+    fetch(`/learning/test_questions/${testId}`)
+      .then(res => res.json())
+      .then(data => {
+        console.log("test questions", data);
+        if (!data.length) {
+          testQuestionsContainer.innerHTML =
+            "<p class='text-muted'>No questions found for this test.</p>";
+          return;
+        }
+
+        data.forEach((q, i) => {
+          const div = document.createElement('div');
+          div.className = 'mb-3 p-3 border rounded';
+
+          // Build media HTML if exists
+          let mediaHtml = "";
+          if (q.media_type && q.media_path) {
+            const fullPath = STATIC_ROOT + q.media_path;  // "uploads/questions/..." appended
+
+            if (q.media_type === "image") {
+              mediaHtml = `
+                <div class="mb-2 text-center">
+                  <img src="${fullPath}" alt="Question media"
+                       style="max-height:200px; max-width:100%; margin-bottom:10px;">
+                </div>
+              `;
+            } else if (q.media_type === "audio") {
+              mediaHtml = `
+                <div class="mb-2">
+                  <audio controls style="width:100%; margin-bottom:10px;">
+                    <source src="${fullPath}">
+                    Your browser does not support the audio element.
+                  </audio>
+                </div>
+              `;
+            }
+          }
+
+          // Question + answer input
+          div.innerHTML = `
+            ${mediaHtml}
+            <label class="form-label fw-semibold">${i + 1}. ${q.question}</label>
+            ${
+              q.answer_type === 'scale'
+                ? '<input type="number" name="answers[' + i + '][answer]" class="form-control" required min="1" max="5">'
+                : '<input type="text" name="answers[' + i + '][answer]" class="form-control" required>'
+            }
+            <input type="hidden" name="answers[${i}][question_id]" value="${q.id}">
+          `;
+
+          testQuestionsContainer.appendChild(div);
+        });
+
+        // Hide first modal and open questions modal
+        const selectModalEl = document.getElementById('selectTestModal');
+        const selectModal = bootstrap.Modal.getInstance(selectModalEl);
+        selectModal.hide();
+        testQuestionsModal.show();
+      });
+  });
+
+  // ---------- Delete Observation SweetAlert ----------
+  const deleteForms = document.querySelectorAll('.delete-observation-form');
+  deleteForms.forEach(form => {
+    form.addEventListener('submit', function(e) {
+      e.preventDefault(); // prevent default form submit
+      Swal.fire({
+        title: 'Are you sure?',
+        text: "You won't be able to revert this!",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Yes, delete it!'
+      }).then((result) => {
+        if (result.isConfirmed) {
+          form.submit();
+        }
+      });
+    });
+  });
+
+  // ---------- Regenerate AI analysis ----------
+  regenBtn.addEventListener("click", async function() {
+    // Disable button and show spinner
+    regenBtn.disabled = true;
+    regenBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i>';
+
+    loadingText.style.display = "block";
+    if (resultDiv) resultDiv.style.opacity = "0.5";
+
+    try {
+      const res = await fetch(window.location.pathname + "?regen=1", {
+        headers: { "X-Requested-With": "XMLHttpRequest" }
+      });
+      const data = await res.json();
+
+      if (data.error === "token_limit") {
+        Swal.fire({
+          icon: "error",
+          title: "Gemini API Limit Reached",
+          text: "Please update your Google API key in settings."
+        });
+      } else {
+        // Update benchmark result dynamically
+        if (data.benchmark_summary) {
+          resultDiv.innerHTML = data.benchmark_summary;
+        }
+        if (data.last_generated) {
+          const small = document.querySelector(".small.mb-2");
+          if (small) small.textContent = "Last generated on " + data.last_generated;
+        }
+      }
+    } catch (err) {
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "Failed to regenerate analysis. Please try again."
+      });
+    } finally {
+      regenBtn.disabled = false;
+      regenBtn.innerHTML = '<i class="fa fa-sync-alt"></i>';
+      loadingText.style.display = "none";
+      if (resultDiv) resultDiv.style.opacity = "1";
+    }
+  });
+});
+</script>

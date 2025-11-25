@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container-fluid vh-100">
+  <div class="row h-100">
+
+    <!-- Left: image (only shown on md+) -->
+    <div class="col-md-8 d-none d-md-block p-0">
+      <div class="h-100 w-100 register-bg">
+      </div>
+    </div>
+
+    <!-- Right: selection cards -->
+        <div class="col-12 col-md-4 d-flex align-items-center justify-content-center min-vh-100 px-4" style="background-color: #f8f9fa;">
+      <div class="auth-box w-90 w-md-75" style="width: 400px;">
+        <h3 class="text-center mb-3 fw-bold" style="color: #0f0f0f;">Create an Account</h3>
+        <p class="text-center mb-4" style="color: #555;">Select your account type to continue</p>
+        <div class="d-grid gap-3">
+
+          <!-- Parent Register Card -->
+          <a href="{{ url_for('register_parent') }}" class="register-card text-decoration-none">
+            <div class="card border-0 shadow-sm">
+              <div class="card-body d-flex align-items-center p-4">
+                <div class="register-icon bg-primary-soft me-3">
+                  <i class="fas fa-user-friends text-primary"></i>
+                </div>
+
+                <div>
+                  <h5 class="card-title mb-1" style="color: #333;">Parent</h5>
+                  <p class="card-text text-muted mb-0 small">For Parent or Guardians</p>
+                </div>
+
+                <i class="fas fa-chevron-right ms-auto text-muted"></i>
+              </div>
+            </div>
+          </a>
+
+          <!-- Admin Register Card -->
+          <a href="{{ url_for('register_admin') }}" class="register-card text-decoration-none">
+            <div class="card border-0 shadow-sm">
+              <div class="card-body d-flex align-items-center p-4">
+                <div class="register-icon bg-warning-soft me-3">
+                  <i class="fas fa-user-shield text-warning"></i>
+                </div>
+                <div>
+
+                  <h5 class="card-title mb-1" style="color: #333;">Admin</h5>
+                  <p class="card-text text-muted mb-0 small">For Admin</p>
+                </div>
+
+                <i class="fas fa-chevron-right ms-auto text-muted"></i>
+              </div>
+            </div>
+          </a>
+        </div>
+
+        <div class="text-center mt-4">
+         <a href="{{ url_for('login') }}" class="auth-link" style="color: #0e88b4;"><small>Already have an account?</small></a>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

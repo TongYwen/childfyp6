@@ -1,0 +1,39 @@
+<div class="container-fluid mt-3">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="mb-0">
+            Educational Resources Hub for {{ selected_child.name }}
+        </h5>
+
+        <div class="text-end">
+            {% if last_generated %}
+                <small class="text-muted d-block">
+                    Last generated: {{ last_generated.strftime("%Y-%m-%d %H:%M") if last_generated.__class__.__name__ == 'datetime' else last_generated }}
+                    {% if use_cached %}
+                        (using saved plan)
+                    {% endif %}
+                </small>
+            {% endif %}
+            <a href="{{ url_for('resources_hub', regen=1) }}" class="btn btn-sm btn-outline-primary mt-1">
+                Regenerate Resources
+            </a>
+        </div>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-body">
+            {% if resources_html %}
+                {{ resources_html|safe }}
+            {% else %}
+                <p class="text-muted mb-0">
+                    No resources generated yet. Click "Regenerate Resources" to create a personalized hub.
+                </p>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="mt-3">
+        <small class="text-muted">
+            These resources are generated based on your child's age, academic needs, and learning style.
+        </small>
+    </div>
+</div>

@@ -1,0 +1,359 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+
+  <!-- User Profile Card -->
+  <div class="card mb-4 shadow-sm">
+    <div class="card-header d-flex justify-content-between align-items-center bg-primary text-white">
+      <h5 class="mb-0">Account Information</h5>
+      <div>
+
+        <button class="btn btn-sm btn-light me-2" data-bs-toggle="modal" data-bs-target="#changePasswordModal">
+
+          <i class="fas fa-key"></i>
+
+        </button>
+
+        <button class="btn btn-sm btn-light" data-bs-toggle="modal" data-bs-target="#editProfileModal">
+
+          <i class="fas fa-pencil-alt"></i>
+
+        </button>
+
+      </div>
+    </div>
+    <div class="card-body">
+      <p><strong>Name:</strong> {{ user.name }}</p>
+      <p><strong>Email:</strong> {{ user.email }}</p>
+      <p><strong>Role:</strong> {{ user.role|capitalize }}</p>
+    </div>
+  </div>
+
+  <!-- Children & Tests Tabs -->
+  <div class="card shadow-sm">
+    <div class="card-header text-white">
+      <ul class="nav nav-tabs card-header-tabs" id="profileTabs" role="tablist">
+          <li class="nav-item">
+            <button class="nav-link active" id="children-tab" data-bs-toggle="tab"
+            data-bs-target="#childrenTab" type="button" role="tab">
+            Children
+            </button>
+          </li>
+
+          
+      </ul>
+
+    </div>
+
+    <div class="card-body tab-content">
+
+      <!-- Children Tab -->
+      <div class="tab-pane fade show active" id="childrenTab" role="tabpanel">
+        <div class="d-flex justify-content-between mb-3">
+          <input type="text" id="childSearch" class="form-control form-control-sm" 
+                 placeholder="Search child..." style="width:200px;">
+          <button class="btn btn-sm btn-primary ms-2" data-bs-toggle="modal" data-bs-target="#addChildModal">
+            + Add Child
+          </button>
+        </div>
+
+        {% if children %}
+        <div class="table-responsive">
+          <table class="table table-hover mb-0" id="childrenTable">
+            <thead class="table-light">
+              <tr>
+                <th>Name</th>
+                <th>Age</th>
+                <th>Grade</th>
+                <th>Gender</th>
+                <th>DOB</th>
+                <th>Notes</th>
+                <th class="text-center">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for child in children %}
+              <tr>
+                <td>{{ child.name }}</td>
+                <td>{{ child.age }}</td>
+                <td>{{ child.grade_level }}</td>
+                <td>{{ child.gender }}</td>
+                <td>{{ child.dob }}</td>
+                <td>{{ child.notes or "-" }}</td>
+                <td class="text-center">
+                  <button class="btn btn-sm btn-warning" 
+                          data-bs-toggle="modal" 
+                          data-bs-target="#editChildModal{{ child.id }}">
+                    <i class="fa-solid fa-pen-to-square"></i>
+                  </button>
+                  <button type="button" class="btn btn-sm btn-danger delete-btn" 
+                          data-url="{{ url_for('delete_child', child_id=child.id) }}">
+                    <i class="fa-solid fa-trash"></i>
+                  </button>
+                </td>
+              </tr>
+
+              <!-- Edit Child Modal -->
+              <div class="modal fade" id="editChildModal{{ child.id }}" tabindex="-1">
+                <div class="modal-dialog modal-lg">
+                  <div class="modal-content">
+                    <form action="{{ url_for('edit_child', child_id=child.id) }}" method="POST">
+                      <div class="modal-header">
+                        <h5 class="modal-title">Edit Child - {{ child.name }}</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                      </div>
+                      <div class="modal-body">
+                        <div class="row">
+                          <div class="col-md-6 mb-3">
+                            <label class="form-label">Name</label>
+                            <input type="text" name="name" value="{{ child.name }}" class="form-control" required>
+                          </div>
+                          <div class="col-md-6 mb-3">
+                            <label class="form-label">DOB</label>
+                            <input type="date" name="dob" value="{{ child.dob }}" class="form-control" required>
+                          </div>
+                        </div>
+                        <div class="row">
+                          <div class="col-md-4 mb-3">
+                            <label class="form-label">Age</label>
+                            <input type="number" name="age" value="{{ child.age }}" class="form-control" required>
+                          </div>
+                          <div class="col-md-4 mb-3">
+                            <label class="form-label">Grade Level</label>
+                            <input type="text" name="grade_level" value="{{ child.grade_level }}" class="form-control" required>
+                          </div>
+                          <div class="col-md-4 mb-3">
+                            <label class="form-label">Gender</label>
+                            <select name="gender" class="form-select" required>
+                              <option value="">Select</option>
+                              <option value="male"   {% if child.gender == 'male' %}selected{% endif %}>Male</option>
+                              <option value="female" {% if child.gender == 'female' %}selected{% endif %}>Female</option>
+                              <option value="other"  {% if child.gender == 'other' %}selected{% endif %}>Other</option>
+                            </select>
+                          </div>
+                        </div>
+                        <div class="mb-3">
+                          <label class="form-label">Notes</label>
+                          <textarea name="notes" class="form-control">{{ child.notes }}</textarea>
+                        </div>
+                      </div>
+                      <div class="modal-footer">
+                        <button type="submit" class="btn btn-success">Save</button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              </div>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <p class="text-center text-muted my-3">No child profiles found. Use <strong>+ Add</strong> to create one.</p>
+        {% endif %}
+      </div>
+
+
+<!-- Add Profile Modal -->
+<div class="modal fade" id="editProfileModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form action="{{ url_for('edit_profile') }}" method="POST">
+        <div class="modal-header">
+          <h5 class="modal-title">Edit Profile</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">Name</label>
+            <input type="text" name="name" value="{{ user.name }}" class="form-control" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Email</label>
+            <input type="email" name="email" value="{{ user.email }}" class="form-control" required>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-success">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Change Password Modal -->
+<div class="modal fade" id="changePasswordModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form action="{{ url_for('change_password') }}" method="POST">
+        <div class="modal-header">
+          <h5 class="modal-title" style="font-family: 'Lobster', cursive; font-style: italic;">Change Password</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label"><strong>Current Password:</strong></label>
+            <input type="password" name="current_password" class="form-control" required>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label"><strong>New Password:</strong></label>
+            <input type="password" name="new_password" class="form-control" required>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label"><strong>Confirm New Password:</strong></label>
+            <input type="password" name="confirm_password" class="form-control" required>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-success px-4">Change Password</button>
+          <button type="button" class="btn btn-danger px-4" data-bs-dismiss="modal">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Add Child Modal -->
+<div class="modal fade" id="addChildModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <form action="{{ url_for('add_child') }}" method="POST">
+        <div class="modal-header">
+          <h5 class="modal-title">Add New Child</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Name</label>
+              <input type="text" name="name" class="form-control" required>
+            </div>
+            <div class="col-md-6 mb-3">
+              <label class="form-label">DOB</label>
+              <input type="date" name="dob" class="form-control" required>
+            </div>
+          </div>
+          <div class="row">
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Age</label>
+              <input type="number" name="age" class="form-control" required>
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Grade Level</label>
+              <input type="text" name="grade_level" class="form-control" required>
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Gender</label>
+              <select name="gender" class="form-select" required>
+                <option value="">Select</option>
+                <option>Male</option>
+                <option>Female</option>
+                <option>Other</option>
+              </select>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Notes</label>
+            <textarea name="notes" class="form-control"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-primary">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+
+  // Child search filter
+  const search = document.getElementById("childSearch");
+  if (search) {
+    search.addEventListener("keyup", function() {
+      let filter = this.value.toLowerCase();
+      let rows = document.querySelectorAll("#childrenTable tbody tr");
+      rows.forEach(row => {
+        let name = row.querySelector("td").textContent.toLowerCase();
+        row.style.display = name.includes(filter) ? "" : "none";
+      });
+    });
+  }
+
+  // Dynamic Questions: Works for all modals
+  function setupDynamicQuestionsForAllModals() {
+    document.querySelectorAll(".modal").forEach(modal => {
+      const container = modal.querySelector(".questions-container");
+      const addBtn = modal.querySelector(".add-question-btn");
+      if (!container || !addBtn) return;
+
+      // Attach add question handler
+      addBtn.addEventListener("click", function () {
+        const newItem = document.createElement("div");
+        newItem.classList.add("input-group", "mb-2", "question-item");
+        newItem.innerHTML = `
+          <input type="text" name="questions_text[]" class="form-control" placeholder="Enter question" required>
+          <select name="questions_type[]" class="form-select" style="max-width:150px;">
+            <option value="text" selected>Text</option>
+            <option value="scale">Scale</option>
+          </select>
+          <button type="button" class="btn btn-danger remove-question">×</button>
+        `;
+        container.appendChild(newItem);
+        attachRemoveHandler(newItem);
+      });
+
+      // Attach remove handlers for existing questions
+      container.querySelectorAll(".remove-question").forEach(btn => attachRemoveHandler(btn.closest(".question-item")));
+    });
+  }
+
+  // Attach remove handler to a single question item
+  function attachRemoveHandler(item) {
+    const btn = item.querySelector(".remove-question");
+    if (!btn) return;
+    btn.addEventListener("click", function () {
+      item.remove();
+    });
+  }
+
+  setupDynamicQuestionsForAllModals();
+
+  // SweetAlert delete confirmation (event delegation)
+  document.body.addEventListener("click", function(e) {
+    if (e.target.closest(".delete-btn")) {
+      e.preventDefault();
+      let btn = e.target.closest(".delete-btn");
+      let url = btn.getAttribute("data-url");
+
+      Swal.fire({
+        title: "Are you sure?",
+        text: "This will permanently delete the record.",
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonColor: "#d33",
+        cancelButtonColor: "#6c757d",
+        confirmButtonText: "Yes, delete it!"
+      }).then((result) => {
+        if (result.isConfirmed) {
+          let form = document.createElement("form");
+          form.method = "POST";
+          form.action = url;
+          document.body.appendChild(form);
+          form.submit();
+        }
+      });
+    }
+  });
+
+});
+</script>
+
+{% endblock %}

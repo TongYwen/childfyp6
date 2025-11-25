@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+    <h3>Create New Test</h3>
+    <form method="POST" action="{{ url_for('admin_create_test') }}" enctype="multipart/form-data">
+        <div class="mb-3">
+            <label class="form-label">Test Name</label>
+            <input type="text" name="name" class="form-control" required>
+        </div>
+
+        <h6>Questions</h6>
+        <div id="questions-container">
+            <div class="input-group mb-2 question-item">
+
+                <!-- Question -->
+                <input type="text" name="questions[]" class="form-control" placeholder="Enter question" required>
+
+                <!-- Category -->
+                <select name="categories[]" class="form-select" style="max-width:150px;">
+                    <option value="visual">Visual</option>
+                    <option value="reading" selected>Reading</option>
+                    <option value="auditory">Auditory</option>
+                </select>
+
+                <!-- Media input -->
+                <input type="file" name="question_media[]" class="form-control" style="max-width:230px"
+                    accept="image/*,audio/*">
+
+                <!-- Remove -->
+                <button type="button" class="btn btn-danger remove-question">×</button>
+
+            </div>
+
+
+        </div>
+        <button type="button" id="add-question" class="btn btn-sm btn-secondary mb-3">
+            + Add Question
+        </button>
+
+        <div class="mt-3">
+            <button type="submit" class="btn btn-primary">Save Test</button>
+            <a href="{{ url_for('admin_tests') }}" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const container = document.getElementById("questions-container");
+    const addBtn = document.getElementById("add-question");
+
+    function attachRemove(btn){
+        btn.addEventListener("click", function(){
+            btn.closest(".question-item").remove();
+        });
+    }
+
+    addBtn.addEventListener("click", function () {
+        const div = document.createElement("div");
+        div.className = "input-group mb-2 question-item";
+        div.innerHTML = `
+            <input type="text" name="questions[]" class="form-control" placeholder="Enter question" required>
+
+            <select name="categories[]" class="form-select" style="max-width:150px;">
+                <option value="visual">Visual</option>
+                <option value="reading" selected>Reading</option>
+                <option value="auditory">Auditory</option>
+            </select>
+
+            <input type="file" name="question_media[]" class="form-control" style="max-width:230px"
+                accept="image/*,audio/*">
+
+            <button type="button" class="btn btn-danger remove-question">&times;</button>
+        `;
+
+
+        container.appendChild(div);
+        attachRemove(div.querySelector(".remove-question"));
+    });
+
+    container.querySelectorAll(".remove-question").forEach(attachRemove);
+});
+</script>
+{% endblock %}

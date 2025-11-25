@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Admin Dashboard</h2>
+    <p>Welcome, {{ current_user.name }} (Admin).</p>
+
+    <div class="row mt-4">
+        <!-- ✅ User Management (ADD THIS BLOCK) -->
+        <div class="col-md-4">
+            <a href="{{ url_for('admin_users') }}" class="text-decoration-none">
+                <div class="card shadow-sm mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title">User Management</h5>
+                        <p class="card-text">View, edit, or delete parent/admin accounts.</p>
+                    </div>
+                </div>
+            </a>
+        </div>
+        <!-- END User Management -->
+         
+        <!-- Questionnaires -->
+        <div class="col-md-4">
+            <a href="{{ url_for('admin_tests') }}" class="text-decoration-none">
+                <div class="card mb-3 shadow-sm hover-shadow">
+                    <div class="card-body">
+                        <h5 class="card-title">Test Management</h5>
+                        <p class="card-text">Create and manage learning style tests.</p>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+
+        
+
+        <!-- AI Config / Resources -->
+        <div class="col-md-4">
+            <div class="card mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">AI Config / Resources</h5>
+                    <p class="card-text">Manage educational resources and AI prompts.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Children Overview -->
+        <div class="col-md-4">
+            <div class="card mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">Children Overview</h5>
+                    <p class="card-text">View high-level statistics of all children.</p>
+                </div>
+            </div>
+        </div>
+
+        
+
+    </div>
+</div>
+{% endblock %}

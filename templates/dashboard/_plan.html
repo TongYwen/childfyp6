@@ -1,0 +1,27 @@
+<div class="container-fluid mt-3">
+  <div class="card shadow-sm mb-3">
+    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+      <span>Personalized Learning Plan for {{ selected_child.name }}</span>
+      <div class="d-flex align-items-center gap-2">
+        {% if last_generated %}
+          <small class="text-white-50 me-3">
+            Last generated: {{ last_generated.strftime('%Y-%m-%d %H:%M') }}
+            {% if use_cached %}(using saved plan){% endif %}
+          </small>
+        {% endif %}
+        <a href="{{ url_for('learning_plan', regen=1) }}" class="btn btn-sm btn-light">
+          Regenerate Plan
+        </a>
+      </div>
+    </div>
+    <div class="card-body">
+      {% if plan_html %}
+        {{ plan_html|safe }}
+      {% else %}
+        <p class="text-muted mb-0">
+          No learning plan available yet. Please add some data or try again later.
+        </p>
+      {% endif %}
+    </div>
+  </div>
+</div>

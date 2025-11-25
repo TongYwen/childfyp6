@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container-fluid vh-100">
+  <div class="row h-100">
+
+    <!-- Left: image (only shown on md+) -->
+    <div class="col-md-8 d-none d-md-block p-0">
+      <div class="h-100 w-100 register-bg">
+      </div>
+    </div>
+
+    <!-- Right: form -->
+    <div class="col-12 col-md-4 d-flex align-items-center justify-content-center">
+      <div class="auth-box w-90 w-md-75" style="width: 400px;">
+        <h3 class="text-center mb-3 fw-bold" style="color: #000000;">Create Your Account</h3>
+        <p class="text-center mb-3" style="color: #555;">Create your admin account</p>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, msg in messages %}
+
+              <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                {{ msg }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+              </div>
+
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
+        <form method="POST" novalidate>
+          <div class="mb-3">
+            <input type="text" class="form-control" name="name" placeholder="Enter your name" required>
+          </div>
+
+          <div class="mb-3">
+            <input type="email" class="form-control" name="email" placeholder="Enter your email address" required>
+          </div>
+
+          <div class="mb-3">
+           <div class="input-group">
+              <input type="password" class="form-control" name="password" id="password" placeholder="Create a secure password" required>
+              <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('password', 'eyeIcon1')">
+                <i class="fas fa-eye" id="eyeIcon1"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <div class="input-group">
+              <input type="password" class="form-control" name="confirm_password" id="confirm_password" placeholder="Confirm Your Password" required>
+              <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('confirm_password', 'eyeIcon2')">
+                <i class="fas fa-eye" id="eyeIcon2"></i>
+              </button>
+            </div>
+          </div>
+
+         
+          <div class="mb-3">
+            <input type="password" class="form-control" name="admin_passkey" placeholder="Admin Passkey" required>
+            <small class="text-muted">Enter the admin passkey provided to you.</small>
+          </div>
+          <button type="submit" class="btn btn-primary w-100">Sign up</button>
+        </form>
+
+        <div class="text-center mt-3">
+          <small style="color: #0e88b4;">
+            <a href="{{ url_for('register_select') }}" class="auth-link"><i class="fas fa-arrow-left me-1"></i>Back to Selection</a>
+          </small>
+
+          <div class="text-center mt-2">
+         <a href="{{ url_for('login') }}" class="auth-link" style="color: #0e88b4;"><small>Already have an account?</small></a>
+        </div>
+
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+{% endblock %}
