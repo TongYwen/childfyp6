@@ -38,6 +38,7 @@ app.config["QUESTION_UPLOAD_FOLDER"] = QUESTION_UPLOAD_FOLDER
 
 ALLOWED_IMAGE_EXT = {"png", "jpg", "jpeg", "gif"}
 ALLOWED_AUDIO_EXT = {"mp3", "wav", "ogg"}
+MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB in bytes
 
 load_dotenv()
 bcrypt = Bcrypt(app)
@@ -118,6 +119,36 @@ def is_valid_name(name: str) -> bool:
     pattern = r"^[A-Za-z\s]+$"
     return re.match(pattern, name.strip()) is not None
 
+def is_valid_age(age) -> bool:
+    """
+    Validate that age is a number between 0 and 18.
+    Returns True if valid, False otherwise.
+    """
+    try:
+        age_int = int(age)
+        return 0 <= age_int <= 18
+    except (ValueError, TypeError):
+        return False
+
+def is_valid_gender(gender: str) -> bool:
+    """
+    Validate that gender is one of the allowed values.
+    Returns True if valid, False otherwise.
+    """
+    allowed_genders = ["male", "female", "other"]
+    return gender and gender.lower() in allowed_genders
+
+def is_valid_grade_level(grade_level: str) -> bool:
+    """
+    Validate that grade level is not empty and has reasonable format.
+    Returns True if valid, False otherwise.
+    """
+    if not grade_level or not grade_level.strip():
+        return False
+    # Allow alphanumeric, spaces, hyphens (e.g., "K-1", "Preschool", "Grade 1")
+    pattern = r"^[A-Za-z0-9\s\-]+$"
+    return re.match(pattern, grade_level.strip()) is not None
+
 def normalize_role(role):
     if not role:
         return None
@@ -159,9 +190,19 @@ def save_question_media(file_storage, test_id, index):
     """
     Save uploaded file for a question and return (media_type, media_path).
     media_path is relative to static/, e.g. 'uploads/questions/xxx.png'
+    Returns (None, None) if file is invalid or too large.
+    Raises ValueError if file is too large.
     """
     if not file_storage or not file_storage.filename:
         return None, None
+
+    # Check file size
+    file_storage.seek(0, 2)  # Seek to end of file
+    file_size = file_storage.tell()
+    file_storage.seek(0)  # Reset to beginning
+
+    if file_size > MAX_FILE_SIZE:
+        raise ValueError(f"File size exceeds maximum allowed size of {MAX_FILE_SIZE // (1024*1024)}MB")
 
     filename = file_storage.filename
     ext = filename.rsplit(".", 1)[-1].lower()
@@ -340,6 +381,11 @@ def login():
         email = request.form["email"].strip().lower()
         password = request.form["password"]
 
+        # Validate email format
+        if not EMAIL_REGEX.match(email):
+            flash("Please enter a valid email address.", "danger")
+            return redirect(url_for("login"))
+
         conn = get_db_conn()
         cursor = conn.cursor(dictionary=True)
         cursor.execute(
@@ -432,6 +478,12 @@ If you didn't request this, you can safely ignore this email.
 def forgot():
     if request.method == "POST":
         email = request.form["email"].strip().lower()
+
+        # Validate email format
+        if not EMAIL_REGEX.match(email):
+            flash("Please enter a valid email address.", "danger")
+            return redirect(url_for("forgot"))
+
         conn = get_db_conn()
         cursor = conn.cursor(dictionary=True)
         cursor.execute("SELECT id FROM users WHERE email = %s", (email,))
@@ -465,11 +517,10 @@ def reset_password(token):
                 "New password and confirmation do not match.", "danger"
             )
             return redirect(url_for("reset_password", token=token))
-            
-         if not is_strong_password(new_password):
+
+        if not is_strong_password(new_password):
             flash(
                 "Password must be at least 8 characters long and include one uppercase letter, one lowercase letter, and one symbol.",
-
                 "warning"
             )
             return redirect(url_for("reset_password", token=token))
@@ -615,6 +666,27 @@ def children():
             conn.close()
             return render_template("select_child.html", children=children_list)
 
+        # Validate age range (0-18)
+        if not is_valid_age(age):
+            flash("Age must be a number between 0 and 18.", "danger")
+            cursor.close()
+            conn.close()
+            return redirect(url_for("children"))
+
+        # Validate grade level format
+        if not is_valid_grade_level(grade_level):
+            flash("Grade level must contain only letters, numbers, spaces, and hyphens.", "danger")
+            cursor.close()
+            conn.close()
+            return redirect(url_for("children"))
+
+        # Validate gender
+        if not is_valid_gender(gender):
+            flash("Please select a valid gender (Male, Female, or Other).", "danger")
+            cursor.close()
+            conn.close()
+            return redirect(url_for("children"))
+
         cursor.execute(
             """
             INSERT INTO children
@@ -673,10 +745,29 @@ def edit_profile():
     # Validate name contains only alphabet letters
     if not is_valid_name(name):
         flash("Name must contain only alphabet letters and spaces.", "danger")
-        return redirect(url_for("profile"))  
+        return redirect(url_for("profile"))
+
+    # Validate email format
+    if not EMAIL_REGEX.match(email):
+        flash("Please enter a valid email address.", "danger")
+        return redirect(url_for("profile"))
 
     conn = get_db_conn()
-    cursor = conn.cursor()
+    cursor = conn.cursor(dictionary=True)
+
+    # Check for duplicate email (excluding current user)
+    cursor.execute(
+        "SELECT id FROM users WHERE email = %s AND id != %s",
+        (email, current_user.id)
+    )
+    existing_user = cursor.fetchone()
+
+    if existing_user:
+        cursor.close()
+        conn.close()
+        flash("This email is already in use by another account.", "danger")
+        return redirect(url_for("profile"))
+
     cursor.execute(
         "UPDATE users SET name=%s, email=%s WHERE id=%s",
         (name, email, current_user.id),
@@ -702,6 +793,21 @@ def add_child():
     # Validate name contains only alphabet letters
     if not is_valid_name(name):
         flash("Child name must contain only alphabet letters and spaces.", "danger")
+        return redirect(url_for("profile"))
+
+    # Validate age range (0-18)
+    if not is_valid_age(age):
+        flash("Age must be a number between 0 and 18.", "danger")
+        return redirect(url_for("profile"))
+
+    # Validate grade level format
+    if not is_valid_grade_level(grade_level):
+        flash("Grade level must contain only letters, numbers, spaces, and hyphens.", "danger")
+        return redirect(url_for("profile"))
+
+    # Validate gender
+    if not is_valid_gender(gender):
+        flash("Please select a valid gender (Male, Female, or Other).", "danger")
         return redirect(url_for("profile"))
 
     conn = get_db_conn()
@@ -754,6 +860,21 @@ def edit_child(child_id):
         flash("Child name must contain only alphabet letters and spaces.", "danger")
         return redirect(url_for("profile"))
 
+    # Validate age range (0-18)
+    if not is_valid_age(age):
+        flash("Age must be a number between 0 and 18.", "danger")
+        return redirect(url_for("profile"))
+
+    # Validate grade level format
+    if not is_valid_grade_level(grade_level):
+        flash("Grade level must contain only letters, numbers, spaces, and hyphens.", "danger")
+        return redirect(url_for("profile"))
+
+    # Validate gender
+    if not is_valid_gender(gender):
+        flash("Please select a valid gender (Male, Female, or Other).", "danger")
+        return redirect(url_for("profile"))
+
     conn = get_db_conn()
     cursor = conn.cursor()
     cursor.execute(
@@ -804,6 +925,20 @@ def academic_progress():
         month = request.form.get("month", type=int)
 
         if subject and score is not None and year and month:
+            # Validate score range (0-100)
+            if score < 0 or score > 100:
+                flash("Score must be between 0 and 100.", "danger")
+                cursor.close()
+                conn.close()
+                return redirect(url_for("academic_progress"))
+
+            # Validate month range (1-12)
+            if month < 1 or month > 12:
+                flash("Month must be between 1 and 12.", "danger")
+                cursor.close()
+                conn.close()
+                return redirect(url_for("academic_progress"))
+
             record_date = date(year, month, 1)
             cursor.execute(
                 """
@@ -2198,8 +2333,25 @@ def admin_edit_user(user_id):
             conn.close()
             return render_template("admin/edit_user.html", user=user)
 
+        # Validate email format
+        if not EMAIL_REGEX.match(email):
+            flash("Please enter a valid email address.", "danger")
+            cursor.close()
+            conn.close()
+            return render_template("admin/edit_user.html", user=user)
+
         try:
             if password:
+                # Validate strong password when updating
+                if not is_strong_password(password):
+                    flash(
+                        "Password must be at least 8 characters long and include one uppercase letter, one lowercase letter, and one symbol.",
+                        "warning"
+                    )
+                    cursor.close()
+                    conn.close()
+                    return render_template("admin/edit_user.html", user=user)
+
                 hashed = bcrypt.generate_password_hash(password).decode(
                     "utf-8"
                 )
@@ -2313,39 +2465,66 @@ def admin_create_test():
         categories = request.form.getlist("categories[]")
         media_files = request.files.getlist("question_media[]")
 
+        # Validate test name length (1-200 characters)
+        if not name or len(name) < 1:
+            flash("Test name is required.", "danger")
+            return redirect(url_for("admin_create_test"))
+
+        if len(name) > 200:
+            flash("Test name must be 200 characters or less.", "danger")
+            return redirect(url_for("admin_create_test"))
+
+        # Validate minimum question requirement (at least 1 question)
+        if not questions or len(questions) < 1:
+            flash("Test must have at least one question.", "danger")
+            return redirect(url_for("admin_create_test"))
+
+        # Filter out empty questions
+        questions = [q.strip() for q in questions if q.strip()]
+        if len(questions) < 1:
+            flash("Test must have at least one non-empty question.", "danger")
+            return redirect(url_for("admin_create_test"))
+
         conn = get_db_conn()
         cursor = conn.cursor()
 
-        # 🔴 OLD: user_id = NULL  (causes error)
-        # cursor.execute(
-        #     "INSERT INTO tests (name, user_id) VALUES (%s, NULL)", (name,)
-        # )
-
-        # ✅ NEW: store the ID of the logged-in admin
+        # Store the ID of the logged-in admin
         cursor.execute(
             "INSERT INTO tests (name, user_id) VALUES (%s, %s)",
             (name, current_user.id),
         )
         test_id = cursor.lastrowid
 
-        for idx, (q, cat) in enumerate(zip(questions, categories)):
-            file_obj = media_files[idx] if idx < len(media_files) else None
-            media_type, media_path = save_question_media(file_obj, test_id, idx)
+        try:
+            for idx, (q, cat) in enumerate(zip(questions, categories)):
+                file_obj = media_files[idx] if idx < len(media_files) else None
+                try:
+                    media_type, media_path = save_question_media(file_obj, test_id, idx)
+                except ValueError as e:
+                    # File size error
+                    cursor.close()
+                    conn.close()
+                    flash(str(e), "danger")
+                    return redirect(url_for("admin_create_test"))
 
-            cursor.execute(
-                """
-                INSERT INTO test_questions
-                (test_id, question, answer_type, category, media_type, media_path)
-                VALUES (%s, %s, 'scale', %s, %s, %s)
-                """,
-                (test_id, q, cat, media_type, media_path),
-            )
+                cursor.execute(
+                    """
+                    INSERT INTO test_questions
+                    (test_id, question, answer_type, category, media_type, media_path)
+                    VALUES (%s, %s, 'scale', %s, %s, %s)
+                    """,
+                    (test_id, q, cat, media_type, media_path),
+                )
 
-        conn.commit()
-        cursor.close()
-        conn.close()
+            conn.commit()
+            flash("Test created successfully!", "success")
+        except Exception as e:
+            conn.rollback()
+            flash(f"Error creating test: {str(e)}", "danger")
+        finally:
+            cursor.close()
+            conn.close()
 
-        flash("Test created successfully!", "success")
         return redirect(url_for("admin_tests"))
 
     return render_template("admin/create_test.html")
@@ -2378,39 +2557,75 @@ def admin_edit_test(test_id):
         new_categories = request.form.getlist("categories[]")
         media_files = request.files.getlist("question_media[]")
 
+        # Validate test name length (1-200 characters)
+        if not new_name or len(new_name) < 1:
+            flash("Test name is required.", "danger")
+            cursor.close()
+            conn.close()
+            return redirect(url_for("admin_edit_test", test_id=test_id))
+
+        if len(new_name) > 200:
+            flash("Test name must be 200 characters or less.", "danger")
+            cursor.close()
+            conn.close()
+            return redirect(url_for("admin_edit_test", test_id=test_id))
+
+        # Filter out empty questions
+        new_questions = [q.strip() for q in new_questions if q.strip()]
+
+        # Validate minimum question requirement (at least 1 question)
+        if len(new_questions) < 1:
+            flash("Test must have at least one non-empty question.", "danger")
+            cursor.close()
+            conn.close()
+            return redirect(url_for("admin_edit_test", test_id=test_id))
+
         # Safety: if categories shorter than questions, pad
         if len(new_categories) < len(new_questions):
             new_categories = (
                 new_categories + ["reading"] * len(new_questions)
             )[: len(new_questions)]
 
-        # Update test name
-        cursor.execute(
-            "UPDATE tests SET name=%s WHERE id=%s", (new_name, test_id)
-        )
-
-        # Remove old questions (and their media)
-        cursor.execute("DELETE FROM test_questions WHERE test_id=%s", (test_id,))
-
-        # Re-insert questions with media
-        for idx, (q, cat) in enumerate(zip(new_questions, new_categories)):
-            file_obj = media_files[idx] if idx < len(media_files) else None
-            media_type, media_path = save_question_media(file_obj, test_id, idx)
-
+        try:
+            # Update test name
             cursor.execute(
-                """
-                INSERT INTO test_questions
-                (test_id, question, answer_type, category, media_type, media_path)
-                VALUES (%s, %s, 'scale', %s, %s, %s)
-                """,
-                (test_id, q, cat, media_type, media_path),
+                "UPDATE tests SET name=%s WHERE id=%s", (new_name, test_id)
             )
 
-        conn.commit()
-        cursor.close()
-        conn.close()
+            # Remove old questions (and their media)
+            cursor.execute("DELETE FROM test_questions WHERE test_id=%s", (test_id,))
 
-        flash("Test updated!", "success")
+            # Re-insert questions with media
+            for idx, (q, cat) in enumerate(zip(new_questions, new_categories)):
+                file_obj = media_files[idx] if idx < len(media_files) else None
+                try:
+                    media_type, media_path = save_question_media(file_obj, test_id, idx)
+                except ValueError as e:
+                    # File size error
+                    conn.rollback()
+                    cursor.close()
+                    conn.close()
+                    flash(str(e), "danger")
+                    return redirect(url_for("admin_edit_test", test_id=test_id))
+
+                cursor.execute(
+                    """
+                    INSERT INTO test_questions
+                    (test_id, question, answer_type, category, media_type, media_path)
+                    VALUES (%s, %s, 'scale', %s, %s, %s)
+                    """,
+                    (test_id, q, cat, media_type, media_path),
+                )
+
+            conn.commit()
+            flash("Test updated!", "success")
+        except Exception as e:
+            conn.rollback()
+            flash(f"Error updating test: {str(e)}", "danger")
+        finally:
+            cursor.close()
+            conn.close()
+
         return redirect(url_for("admin_tests"))
 
     cursor.close()
