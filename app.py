@@ -495,6 +495,7 @@ def reset_password(token):
 # -------------------------------------------------
 @app.route("/select-child", methods=["GET", "POST"])
 @login_required
+@roles_required("parent")
 def select_child():
     conn = get_db_conn()
     cursor = conn.cursor(dictionary=True)
@@ -517,6 +518,7 @@ def select_child():
 
 @app.route("/dashboard")
 @login_required
+@roles_required("parent")
 def dashboard():
     if "selected_child" not in session:
         return redirect(url_for("select_child"))
@@ -592,6 +594,7 @@ def dashboard():
 # -------------------------------------------------
 @app.route("/children", methods=["GET", "POST"])
 @login_required
+@roles_required("parent")
 def children():
     conn = get_db_conn()
     cursor = conn.cursor(dictionary=True)
@@ -644,6 +647,7 @@ def children():
 # -------------------------------------------------
 @app.route("/profile", methods=["GET", "POST"])
 @login_required
+@roles_required("parent")
 def profile():
     conn = get_db_conn()
     cursor = conn.cursor(dictionary=True)
@@ -666,6 +670,7 @@ def profile():
 
 @app.route("/profile/edit", methods=["POST"])
 @login_required
+@roles_required("parent")
 def edit_profile():
     name = request.form["name"].strip()
     email = request.form["email"].strip().lower()
@@ -691,6 +696,7 @@ def edit_profile():
 
 @app.route("/profile/child/add", methods=["POST"])
 @login_required
+@roles_required("parent")
 def add_child():
     name = request.form["name"]
     dob = request.form["dob"]
@@ -724,6 +730,7 @@ def add_child():
 
 @app.route("/profile/child/delete/<int:child_id>", methods=["POST"])
 @login_required
+@roles_required("parent")
 def delete_child(child_id):
     conn = get_db_conn()
     cursor = conn.cursor()
@@ -741,6 +748,7 @@ def delete_child(child_id):
 
 @app.route("/profile/child/edit/<int:child_id>", methods=["POST"])
 @login_required
+@roles_required("parent")
 def edit_child(child_id):
     name = request.form["name"]
     dob = request.form["dob"]
@@ -786,6 +794,7 @@ def edit_child(child_id):
 # -------------------------------------------------
 @app.route("/academic", methods=["GET", "POST"])
 @login_required
+@roles_required("parent")
 def academic_progress():
     child_id = session.get("selected_child")
     if not child_id:
@@ -846,6 +855,7 @@ def academic_progress():
 
 @app.route("/academic/delete/<int:id>", methods=["POST"])
 @login_required
+@roles_required("parent")
 def delete_academic(id):
     child_id = session.get("selected_child")
     if not child_id:
@@ -872,6 +882,7 @@ def calculate_months_difference(start_date, end_date):
 
 @app.route("/dashboard/preschool", methods=["GET", "POST"])
 @login_required
+@roles_required("parent")
 def preschool_tracker():
     child_id = session.get("selected_child")
     if not child_id:
@@ -1051,6 +1062,7 @@ def preschool_tracker():
 
 @app.route("/preschool/delete/<int:id>", methods=["POST"])
 @login_required
+@roles_required("parent")
 def delete_preschool(id):
     child_id = session.get("selected_child")
     if not child_id:
@@ -1073,6 +1085,7 @@ def delete_preschool(id):
 # -------------------------------------------------
 @app.route("/dashboard/learning", methods=["GET", "POST"])
 @login_required
+@roles_required("parent")
 def learning_style():
     child_id = session.get("selected_child")
     if not child_id:
@@ -1285,6 +1298,7 @@ def learning_style():
 # ---- Change password ----
 @app.route("/profile/change-password", methods=["POST"])
 @login_required
+@roles_required("parent")
 def change_password():
     current_password = request.form.get("current_password", "")
     new_password = request.form.get("new_password", "")
@@ -1342,6 +1356,7 @@ def change_password():
 # ---- AJAX: get questions for a test (admin-created only) ----
 @app.route("/learning/test_questions/<int:test_id>")
 @login_required
+@roles_required("parent")
 def get_test_questions(test_id):
     conn = get_db_conn()
     cursor = conn.cursor(dictionary=True)
@@ -1365,6 +1380,7 @@ def get_test_questions(test_id):
 
 @app.route("/learning/take_test/<int:child_id>", methods=["POST"])
 @login_required
+@roles_required("parent")
 def take_learning_test(child_id):
     conn = get_db_conn()
     cursor = conn.cursor()
@@ -1399,6 +1415,7 @@ def take_learning_test(child_id):
 
 @app.route("/learning/observation/submit/<int:child_id>", methods=["POST"])
 @login_required
+@roles_required("parent")
 def submit_learning_observation(child_id):
     observation = request.form.get("observation")
     if not observation:
@@ -1423,6 +1440,7 @@ def submit_learning_observation(child_id):
 
 @app.route("/learning/observation/delete/<int:observation_id>", methods=["POST"])
 @login_required
+@roles_required("parent")
 def delete_learning_observation(observation_id):
     conn = get_db_conn()
     cursor = conn.cursor()
@@ -1453,6 +1471,7 @@ def delete_learning_observation(observation_id):
 # --- TUTORING ---
 @app.route("/dashboard/tutoring")
 @login_required
+@roles_required("parent")
 def tutoring_recommendations():
     child_id = session.get("selected_child")
     if not child_id:
@@ -1601,6 +1620,7 @@ def tutoring_recommendations():
 # --- AI INSIGHTS ---
 @app.route("/dashboard/insights")
 @login_required
+@roles_required("parent")
 def ai_insights():
     child_id = session.get("selected_child")
     if not child_id:
@@ -1740,6 +1760,7 @@ Do NOT mention exact score numbers or percentages; just describe performance lev
 # --- LEARNING PLAN ---
 @app.route("/dashboard/plan")
 @login_required
+@roles_required("parent")
 def learning_plan():
     child_id = session.get("selected_child")
     if not child_id:
@@ -1935,6 +1956,7 @@ RULES:
 # --- RESOURCES HUB ---
 @app.route("/dashboard/resources")
 @login_required
+@roles_required("parent")
 def resources_hub():
     child_id = session.get("selected_child")
     if not child_id:
