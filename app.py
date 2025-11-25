@@ -465,8 +465,8 @@ def reset_password(token):
                 "New password and confirmation do not match.", "danger"
             )
             return redirect(url_for("reset_password", token=token))
-            
-         if not is_strong_password(new_password):
+
+        if not is_strong_password(new_password):
             flash(
                 "Password must be at least 8 characters long and include one uppercase letter, one lowercase letter, and one symbol.",
 
