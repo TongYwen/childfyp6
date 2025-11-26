@@ -10,7 +10,7 @@ from flask_login import (
 from flask_mail import Mail, Message
 from itsdangerous import URLSafeTimedSerializer
 import mysql.connector
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from config import Config
 from functools import wraps
 import pandas as pd
@@ -20,6 +20,8 @@ import os
 import json
 from dotenv import load_dotenv
 import time
+import secrets
+import hashlib
 
 # -------------------------------------------------
 # App & extensions
@@ -111,6 +113,107 @@ def before_request():
     """Refresh session activity timestamp on each request"""
     if current_user.is_authenticated:
         session.modified = True
+        # Update last activity in database
+        if 'session_token' in session:
+            update_session_activity(session['session_token'])
+
+
+# -------------------------------------------------
+# Session Management Helpers
+# -------------------------------------------------
+def generate_session_token():
+    """Generate a unique session token"""
+    return secrets.token_urlsafe(32)
+
+
+def get_client_ip():
+    """Get the client's IP address, accounting for proxies"""
+    if request.headers.get('X-Forwarded-For'):
+        return request.headers.get('X-Forwarded-For').split(',')[0].strip()
+    elif request.headers.get('X-Real-IP'):
+        return request.headers.get('X-Real-IP')
+    return request.remote_addr
+
+
+def create_session_record(user_id, remember_me=False):
+    """Create a session record in the database"""
+    session_token = generate_session_token()
+    ip_address = get_client_ip()
+    user_agent = request.headers.get('User-Agent', '')[:500]  # Limit length
+
+    # Calculate expiration based on remember_me
+    if remember_me:
+        expires_at = datetime.now() + app.config['REMEMBER_COOKIE_DURATION']
+    else:
+        expires_at = datetime.now() + app.config['PERMANENT_SESSION_LIFETIME']
+
+    conn = get_db_conn()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            """
+            INSERT INTO user_sessions
+            (user_id, session_token, ip_address, user_agent, remember_me, expires_at)
+            VALUES (%s, %s, %s, %s, %s, %s)
+            """,
+            (user_id, session_token, ip_address, user_agent, remember_me, expires_at)
+        )
+        conn.commit()
+    finally:
+        cursor.close()
+        conn.close()
+
+    return session_token
+
+
+def update_session_activity(session_token):
+    """Update the last activity timestamp for a session"""
+    conn = get_db_conn()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            """
+            UPDATE user_sessions
+            SET last_activity = NOW()
+            WHERE session_token = %s
+            """,
+            (session_token,)
+        )
+        conn.commit()
+    finally:
+        cursor.close()
+        conn.close()
+
+
+def delete_session_record(session_token):
+    """Delete a session record from the database"""
+    conn = get_db_conn()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            "DELETE FROM user_sessions WHERE session_token = %s",
+            (session_token,)
+        )
+        conn.commit()
+    finally:
+        cursor.close()
+        conn.close()
+
+
+def cleanup_expired_sessions():
+    """Remove expired sessions from the database"""
+    conn = get_db_conn()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            "DELETE FROM user_sessions WHERE expires_at < NOW()"
+        )
+        deleted_count = cursor.rowcount
+        conn.commit()
+        return deleted_count
+    finally:
+        cursor.close()
+        conn.close()
 
 
 # -------------------------------------------------
@@ -374,6 +477,14 @@ def login():
             session.permanent = True
             # Login user with remember_me option
             login_user(user_obj, remember=remember_me)
+
+            # Create session record in database
+            session_token = create_session_record(user["id"], remember_me)
+            session['session_token'] = session_token
+
+            # Clean up expired sessions periodically
+            cleanup_expired_sessions()
+
             flash("Logged in successfully.", "success")
 
             if normalize_role(user_obj.role) == "admin":
@@ -390,6 +501,10 @@ def login():
 @app.route("/logout")
 @login_required
 def logout():
+    # Delete session record from database
+    if 'session_token' in session:
+        delete_session_record(session['session_token'])
+
     logout_user()
     session.clear()
     flash("You have been logged out successfully.", "info")
@@ -2297,6 +2412,120 @@ def admin_delete_user(user_id):
 
     flash("User account deleted successfully.", "success")
     return redirect(url_for("admin_users"))
+
+
+# ---- ADMIN SESSION MANAGEMENT ----
+@app.route("/admin/sessions")
+@login_required
+@roles_required("admin")
+def admin_sessions():
+    """View all active sessions"""
+    # Clean up expired sessions first
+    cleanup_expired_sessions()
+
+    conn = get_db_conn()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute(
+        """
+        SELECT
+            us.id,
+            us.user_id,
+            us.session_token,
+            us.ip_address,
+            us.user_agent,
+            us.remember_me,
+            us.created_at,
+            us.last_activity,
+            us.expires_at,
+            u.name AS user_name,
+            u.email AS user_email,
+            u.role AS user_role
+        FROM user_sessions us
+        JOIN users u ON us.user_id = u.id
+        WHERE us.expires_at > NOW()
+        ORDER BY us.last_activity DESC
+        """
+    )
+    sessions = cursor.fetchall()
+
+    # Calculate session duration and time remaining
+    for s in sessions:
+        if s['created_at'] and s['last_activity']:
+            duration = s['last_activity'] - s['created_at']
+            s['duration_minutes'] = int(duration.total_seconds() / 60)
+
+        if s['expires_at']:
+            time_remaining = s['expires_at'] - datetime.now()
+            s['remaining_minutes'] = int(time_remaining.total_seconds() / 60)
+
+        # Truncate user agent for display
+        if s['user_agent']:
+            s['user_agent_short'] = s['user_agent'][:100] + '...' if len(s['user_agent']) > 100 else s['user_agent']
+
+    cursor.close()
+    conn.close()
+
+    return render_template("admin/sessions.html", sessions=sessions)
+
+
+@app.route("/admin/sessions/<int:session_id>/terminate", methods=["POST"])
+@login_required
+@roles_required("admin")
+def admin_terminate_session(session_id):
+    """Force logout a specific session"""
+    conn = get_db_conn()
+    cursor = conn.cursor(dictionary=True)
+
+    # Get session details before deleting
+    cursor.execute(
+        """
+        SELECT us.session_token, u.name, u.email
+        FROM user_sessions us
+        JOIN users u ON us.user_id = u.id
+        WHERE us.id = %s
+        """,
+        (session_id,)
+    )
+    session_data = cursor.fetchone()
+
+    if session_data:
+        cursor.execute("DELETE FROM user_sessions WHERE id = %s", (session_id,))
+        conn.commit()
+        flash(f"Session for {session_data['name']} ({session_data['email']}) has been terminated.", "success")
+    else:
+        flash("Session not found.", "warning")
+
+    cursor.close()
+    conn.close()
+
+    return redirect(url_for("admin_sessions"))
+
+
+@app.route("/admin/sessions/user/<int:user_id>/terminate-all", methods=["POST"])
+@login_required
+@roles_required("admin")
+def admin_terminate_user_sessions(user_id):
+    """Terminate all sessions for a specific user"""
+    conn = get_db_conn()
+    cursor = conn.cursor(dictionary=True)
+
+    # Get user details
+    cursor.execute("SELECT name, email FROM users WHERE id = %s", (user_id,))
+    user = cursor.fetchone()
+
+    if user:
+        cursor.execute("DELETE FROM user_sessions WHERE user_id = %s", (user_id,))
+        deleted_count = cursor.rowcount
+        conn.commit()
+        flash(f"Terminated {deleted_count} session(s) for {user['name']} ({user['email']}).", "success")
+    else:
+        flash("User not found.", "warning")
+
+    cursor.close()
+    conn.close()
+
+    return redirect(url_for("admin_sessions"))
 
 
 # ---- ADMIN TEST MANAGEMENT (GLOBAL TESTS) ----

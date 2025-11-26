@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Active Sessions Management</h2>
+    <p class="text-muted">Monitor and manage all active user sessions in real-time.</p>
+
+    <div class="alert alert-info">
+        <strong>Total Active Sessions:</strong> {{ sessions|length }}
+    </div>
+
+    {% if sessions %}
+    <div class="table-responsive">
+        <table class="table table-hover mt-3">
+            <thead>
+                <tr>
+                    <th>User</th>
+                    <th>Email</th>
+                    <th>Role</th>
+                    <th>IP Address</th>
+                    <th>Browser/Device</th>
+                    <th>Created</th>
+                    <th>Last Activity</th>
+                    <th>Expires In</th>
+                    <th>Remember Me</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in sessions %}
+                <tr>
+                    <td><strong>{{ s.user_name }}</strong></td>
+                    <td>{{ s.user_email }}</td>
+                    <td>
+                        <span class="badge bg-{% if s.user_role == 'admin' %}danger{% else %}primary{% endif %}">
+                            {{ s.user_role }}
+                        </span>
+                    </td>
+                    <td><code>{{ s.ip_address or 'N/A' }}</code></td>
+                    <td>
+                        <small class="text-muted" title="{{ s.user_agent }}">
+                            {{ s.user_agent_short or 'Unknown' }}
+                        </small>
+                    </td>
+                    <td>
+                        <small>{{ s.created_at.strftime('%Y-%m-%d %H:%M') if s.created_at else 'N/A' }}</small>
+                    </td>
+                    <td>
+                        <small>{{ s.last_activity.strftime('%Y-%m-%d %H:%M') if s.last_activity else 'N/A' }}</small>
+                        {% if s.duration_minutes is defined %}
+                        <br><span class="badge bg-secondary">{{ s.duration_minutes }} min ago</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if s.remaining_minutes is defined %}
+                            {% if s.remaining_minutes > 60 %}
+                                <span class="badge bg-success">{{ (s.remaining_minutes / 60)|round(1) }} hours</span>
+                            {% elif s.remaining_minutes > 10 %}
+                                <span class="badge bg-success">{{ s.remaining_minutes }} min</span>
+                            {% elif s.remaining_minutes > 0 %}
+                                <span class="badge bg-warning">{{ s.remaining_minutes }} min</span>
+                            {% else %}
+                                <span class="badge bg-danger">Expiring soon</span>
+                            {% endif %}
+                        {% else %}
+                            <span class="badge bg-secondary">N/A</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if s.remember_me %}
+                            <span class="badge bg-info">Yes</span>
+                        {% else %}
+                            <span class="badge bg-secondary">No</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <form method="POST"
+                              action="{{ url_for('admin_terminate_session', session_id=s.id) }}"
+                              style="display:inline;"
+                              onsubmit="return confirm('Are you sure you want to terminate this session? The user will be logged out immediately.');">
+                            <button type="submit" class="btn btn-sm btn-outline-danger">
+                                Terminate
+                            </button>
+                        </form>
+                        <form method="POST"
+                              action="{{ url_for('admin_terminate_user_sessions', user_id=s.user_id) }}"
+                              style="display:inline;"
+                              onsubmit="return confirm('Are you sure you want to terminate ALL sessions for {{ s.user_name }}?');">
+                            <button type="submit" class="btn btn-sm btn-outline-warning ms-1">
+                                Terminate All
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="alert alert-warning mt-3">
+        <strong>No active sessions found.</strong> All users are currently logged out.
+    </div>
+    {% endif %}
+
+    <div class="mt-4">
+        <a href="{{ url_for('admin_dashboard') }}" class="btn btn-secondary">Back to Dashboard</a>
+    </div>
+</div>
+{% endblock %}

@@ -19,6 +19,18 @@
         </div>
         <!-- END User Management -->
          
+        <!-- Session Management -->
+        <div class="col-md-4">
+            <a href="{{ url_for('admin_sessions') }}" class="text-decoration-none">
+                <div class="card shadow-sm mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title">Session Management</h5>
+                        <p class="card-text">Monitor active sessions and force logout users.</p>
+                    </div>
+                </div>
+            </a>
+        </div>
+
         <!-- Questionnaires -->
         <div class="col-md-4">
             <a href="{{ url_for('admin_tests') }}" class="text-decoration-none">
