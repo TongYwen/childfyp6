@@ -10,7 +10,7 @@ from flask_login import (
 from flask_mail import Mail, Message
 from itsdangerous import URLSafeTimedSerializer
 import mysql.connector
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from config import Config
 from functools import wraps
 import pandas as pd
@@ -96,6 +96,48 @@ def load_user(user_id):
     if row:
         return User(row["id"], row["name"], row["email"], row["role"])
     return None
+
+
+# -------------------------------------------------
+# Session Management Middleware
+# -------------------------------------------------
+@app.before_request
+def check_session_timeout():
+    """
+    Role-based session timeout:
+    - Parents: 30 minute timeout
+    - Admins: No timeout
+    """
+    # Skip timeout check for static files and non-authenticated routes
+    if request.endpoint and (request.endpoint == 'static' or not current_user.is_authenticated):
+        return
+
+    # Only apply timeout to parent users
+    if normalize_role(current_user.role) == "parent":
+        # Check if this is the first request (login)
+        if 'last_activity' not in session:
+            session['last_activity'] = datetime.now().isoformat()
+            session.permanent = True
+            return
+
+        # Get last activity time
+        last_activity = datetime.fromisoformat(session['last_activity'])
+        timeout_duration = timedelta(minutes=30)
+
+        # Check if session has expired
+        if datetime.now() - last_activity > timeout_duration:
+            # Clear session and logout
+            session.clear()
+            logout_user()
+            flash("Your session has expired due to inactivity. Please log in again.", "warning")
+            return redirect(url_for('login'))
+
+        # Update last activity time
+        session['last_activity'] = datetime.now().isoformat()
+
+    # Admins don't have timeout - set permanent session
+    elif normalize_role(current_user.role) == "admin":
+        session.permanent = True
 
 
 # -------------------------------------------------
@@ -354,7 +396,22 @@ def login():
             user_obj = User(
                 user["id"], user["name"], user["email"], user["role"]
             )
+
+            # Regenerate session to prevent session fixation attacks
+            session.clear()
+            session.regenerate = True
+
             login_user(user_obj)
+
+            # Role-based session configuration
+            if normalize_role(user_obj.role) == "parent":
+                # Parents get 30-minute timeout
+                session.permanent = True
+                session['last_activity'] = datetime.now().isoformat()
+            else:
+                # Admins get no timeout
+                session.permanent = True
+
             flash("Logged in successfully.", "success")
 
             if normalize_role(user_obj.role) == "admin":
@@ -371,6 +428,8 @@ def login():
 @app.route("/logout")
 @login_required
 def logout():
+    # Clear all session data
+    session.clear()
     logout_user()
     flash("You have been logged out.", "info")
     return redirect(url_for("login"))
@@ -465,8 +524,8 @@ def reset_password(token):
                 "New password and confirmation do not match.", "danger"
             )
             return redirect(url_for("reset_password", token=token))
-            
-         if not is_strong_password(new_password):
+
+        if not is_strong_password(new_password):
             flash(
                 "Password must be at least 8 characters long and include one uppercase letter, one lowercase letter, and one symbol.",
 
