@@ -1,4 +1,5 @@
 import os
+from datetime import timedelta
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -18,3 +19,10 @@ class Config:
     MAIL_USE_TLS = os.getenv("MAIL_USE_TLS", "True") == "True"
     MAIL_DEFAULT_SENDER = os.getenv("MAIL_DEFAULT_SENDER")
     ADMIN_PASSKEY = os.getenv("ADMIN_PASSKEY")
+
+    # Session management configuration
+    SESSION_COOKIE_SECURE = False  # Set to True in production with HTTPS
+    SESSION_COOKIE_HTTPONLY = True  # Prevents JavaScript access to session cookie
+    SESSION_COOKIE_SAMESITE = 'Lax'  # CSRF protection
+    PERMANENT_SESSION_LIFETIME = timedelta(minutes=30)  # Parent session timeout
+    SESSION_REFRESH_EACH_REQUEST = False  # Manual control of session refresh
