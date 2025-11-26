@@ -43,6 +43,9 @@ load_dotenv()
 bcrypt = Bcrypt(app)
 login_manager = LoginManager(app)
 login_manager.login_view = "login"
+login_manager.session_protection = "strong"  # Protect against session hijacking
+login_manager.login_message = "Please log in to access this page."
+login_manager.login_message_category = "info"
 mail = Mail(app)
 serializer = URLSafeTimedSerializer(app.config["SECRET_KEY"])
 
@@ -96,6 +99,39 @@ def load_user(user_id):
     if row:
         return User(row["id"], row["name"], row["email"], row["role"])
     return None
+
+
+# -------------------------------------------------
+# Session timeout management
+# -------------------------------------------------
+@app.before_request
+def manage_session():
+    """
+    Manages session timeout and activity tracking.
+    - Makes sessions permanent to enable timeout
+    - Tracks last activity time
+    - Auto-logout on inactivity
+    """
+    session.permanent = True
+    app.permanent_session_lifetime = app.config["PERMANENT_SESSION_LIFETIME"]
+
+    if current_user.is_authenticated:
+        now = datetime.now()
+        last_activity = session.get("last_activity")
+
+        if last_activity:
+            last_activity_time = datetime.fromisoformat(last_activity)
+            inactive_duration = now - last_activity_time
+
+            # Check if session has expired due to inactivity
+            if inactive_duration > app.config["PERMANENT_SESSION_LIFETIME"]:
+                logout_user()
+                session.clear()
+                flash("Your session has expired due to inactivity. Please log in again.", "warning")
+                return redirect(url_for("login"))
+
+        # Update last activity time
+        session["last_activity"] = now.isoformat()
 
 
 # -------------------------------------------------
@@ -339,6 +375,7 @@ def login():
     if request.method == "POST":
         email = request.form["email"].strip().lower()
         password = request.form["password"]
+        remember_me = request.form.get("remember_me") == "on"
 
         conn = get_db_conn()
         cursor = conn.cursor(dictionary=True)
@@ -354,7 +391,14 @@ def login():
             user_obj = User(
                 user["id"], user["name"], user["email"], user["role"]
             )
-            login_user(user_obj)
+            # Login user with remember_me option
+            # If remember_me is True, session lasts for 30 days (default)
+            # If False, session expires when browser closes
+            login_user(user_obj, remember=remember_me)
+
+            # Initialize session activity tracking
+            session["last_activity"] = datetime.now().isoformat()
+
             flash("Logged in successfully.", "success")
 
             if normalize_role(user_obj.role) == "admin":
@@ -372,6 +416,7 @@ def login():
 @login_required
 def logout():
     logout_user()
+    session.clear()  # Clear all session data including last_activity
     flash("You have been logged out.", "info")
     return redirect(url_for("login"))
 
