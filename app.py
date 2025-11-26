@@ -27,6 +27,11 @@ import time
 app = Flask(__name__)
 app.config.from_object(Config)
 
+# Session configuration for security and timeout
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['SESSION_COOKIE_SECURE'] = False  # Set to True in production with HTTPS
+
 # ---------- File upload settings for test questions ----------
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 QUESTION_UPLOAD_SUBDIR = os.path.join("static", "uploads", "questions")
@@ -43,6 +48,8 @@ load_dotenv()
 bcrypt = Bcrypt(app)
 login_manager = LoginManager(app)
 login_manager.login_view = "login"
+login_manager.login_message = "Your session has expired. Please log in again."
+login_manager.login_message_category = "info"
 mail = Mail(app)
 serializer = URLSafeTimedSerializer(app.config["SECRET_KEY"])
 
@@ -96,6 +103,14 @@ def load_user(user_id):
     if row:
         return User(row["id"], row["name"], row["email"], row["role"])
     return None
+
+
+# Session timeout handler
+@app.before_request
+def before_request():
+    """Refresh session activity timestamp on each request"""
+    if current_user.is_authenticated:
+        session.modified = True
 
 
 # -------------------------------------------------
@@ -339,6 +354,7 @@ def login():
     if request.method == "POST":
         email = request.form["email"].strip().lower()
         password = request.form["password"]
+        remember_me = request.form.get("remember_me") == "on"
 
         conn = get_db_conn()
         cursor = conn.cursor(dictionary=True)
@@ -354,7 +370,10 @@ def login():
             user_obj = User(
                 user["id"], user["name"], user["email"], user["role"]
             )
-            login_user(user_obj)
+            # Set session as permanent to enable timeout
+            session.permanent = True
+            # Login user with remember_me option
+            login_user(user_obj, remember=remember_me)
             flash("Logged in successfully.", "success")
 
             if normalize_role(user_obj.role) == "admin":
@@ -372,7 +391,8 @@ def login():
 @login_required
 def logout():
     logout_user()
-    flash("You have been logged out.", "info")
+    session.clear()
+    flash("You have been logged out successfully.", "info")
     return redirect(url_for("login"))
 
 
@@ -465,8 +485,8 @@ def reset_password(token):
                 "New password and confirmation do not match.", "danger"
             )
             return redirect(url_for("reset_password", token=token))
-            
-         if not is_strong_password(new_password):
+
+        if not is_strong_password(new_password):
             flash(
                 "Password must be at least 8 characters long and include one uppercase letter, one lowercase letter, and one symbol.",
 
