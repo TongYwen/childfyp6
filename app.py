@@ -20,6 +20,7 @@ import os
 import json
 from dotenv import load_dotenv
 import time
+from ecommerce_integration import EcommerceIntegration, format_resources_html
 
 # -------------------------------------------------
 # App & extensions
@@ -2438,6 +2439,285 @@ def admin_delete_test(test_id):
 
     flash("Test deleted.", "success")
     return redirect(url_for("admin_tests"))
+
+
+# -------------------------------------------------
+# PURCHASABLE RESOURCES / E-COMMERCE
+# -------------------------------------------------
+@app.route("/dashboard/resources-shop")
+@login_required
+def resources_shop():
+    """Enhanced Resources Hub with purchasable items"""
+    child_id = session.get("selected_child")
+    if not child_id:
+        return redirect(url_for("select_child"))
+
+    conn = get_db_conn()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute(
+        "SELECT * FROM children WHERE id=%s AND parent_id=%s",
+        (child_id, current_user.id),
+    )
+    child = cursor.fetchone()
+
+    if not child:
+        cursor.close()
+        conn.close()
+        flash("Child not found.", "danger")
+        return redirect(url_for("dashboard"))
+
+    # Get child's learning profile
+    cursor.execute("""
+        SELECT module, result, data
+        FROM ai_results
+        WHERE child_id=%s AND module IN ('learning', 'insights', 'tutoring')
+        ORDER BY updated_at DESC
+    """, (child_id,))
+
+    ai_data = {row['module']: row for row in cursor.fetchall()}
+
+    # Extract priorities
+    priorities = []
+    if 'tutoring' in ai_data:
+        try:
+            tutoring_data = json.loads(ai_data['tutoring'].get('data', '{}'))
+            priorities = [p.get('area', p.get('subject', ''))
+                         for p in tutoring_data.get('priorities', [])[:3]]
+        except:
+            pass
+
+    # Extract learning style
+    learning_style = 'Visual'
+    if 'learning' in ai_data:
+        result_text = ai_data['learning']['result']
+        for style in ['Visual', 'Auditory', 'Kinesthetic', 'Reading']:
+            if style in result_text:
+                learning_style = style
+                break
+
+    # Initialize e-commerce
+    ecommerce = EcommerceIntegration(conn)
+
+    # Get filters
+    resource_type = request.args.get('type')
+    max_price = request.args.get('max_price', type=float)
+    search_query = request.args.get('q', '').strip()
+
+    # Get resources
+    if search_query:
+        resources = ecommerce.search_resources(
+            query=search_query,
+            child_age=child.get('age'),
+            type_filter=resource_type,
+            max_price=max_price
+        )
+    else:
+        resources = ecommerce.get_resources_for_child(
+            child_age=child.get('age', 5),
+            child_grade=child.get('grade_level', 'preschool'),
+            learning_style=learning_style,
+            priorities=priorities,
+            limit=30
+        )
+
+    popular_resources = ecommerce.get_popular_resources(limit=5)
+    wishlist = ecommerce.get_wishlist(child_id)
+    resources_html = format_resources_html(resources, ecommerce)
+
+    cursor.close()
+    conn.close()
+
+    return render_template(
+        "dashboard.html",
+        content_template="dashboard/_resources_shop.html",
+        selected_child=child,
+        resources=resources,
+        resources_html=resources_html,
+        popular_resources=popular_resources,
+        wishlist=wishlist,
+        learning_style=learning_style,
+        priorities=priorities,
+        active="resources_shop",
+    )
+
+
+@app.route("/resource/purchase/<int:resource_id>/<int:link_id>")
+@login_required
+def purchase_redirect(resource_id, link_id):
+    """Track click and redirect to e-commerce site"""
+    child_id = session.get("selected_child")
+
+    if not child_id:
+        flash("Please select a child first.", "warning")
+        return redirect(url_for("select_child"))
+
+    conn = get_db_conn()
+    ecommerce = EcommerceIntegration(conn)
+
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("""
+        SELECT platform, url, affiliate_link
+        FROM resource_purchase_links
+        WHERE id = %s
+    """, (link_id,))
+
+    link = cursor.fetchone()
+    cursor.close()
+
+    if not link:
+        conn.close()
+        flash("Purchase link not found.", "danger")
+        return redirect(url_for("resources_shop"))
+
+    device = 'mobile' if request.user_agent.platform in ['android', 'iphone'] else 'web'
+    ecommerce.track_click(child_id, resource_id, link_id, link['platform'], device)
+
+    conn.close()
+
+    redirect_url = link['affiliate_link'] if link['affiliate_link'] else link['url']
+    return redirect(redirect_url)
+
+
+@app.route("/api/resource/track-click/<int:resource_id>/<int:link_id>", methods=["POST"])
+@login_required
+def api_track_click(resource_id, link_id):
+    """API endpoint to track clicks"""
+    child_id = session.get("selected_child")
+
+    if not child_id:
+        return jsonify({"success": False, "error": "No child selected"}), 400
+
+    conn = get_db_conn()
+    ecommerce = EcommerceIntegration(conn)
+
+    try:
+        device = request.json.get('device', 'web') if request.is_json else 'web'
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute("SELECT platform FROM resource_purchase_links WHERE id=%s", (link_id,))
+        link = cursor.fetchone()
+        cursor.close()
+
+        if link:
+            click_id = ecommerce.track_click(
+                child_id, resource_id, link_id, link['platform'], device
+            )
+            conn.close()
+            return jsonify({"success": True, "click_id": click_id})
+        else:
+            conn.close()
+            return jsonify({"success": False, "error": "Link not found"}), 404
+
+    except Exception as e:
+        conn.close()
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/api/resource/wishlist/add/<int:resource_id>", methods=["POST"])
+@login_required
+def api_wishlist_add(resource_id):
+    """Add resource to wishlist"""
+    child_id = session.get("selected_child")
+
+    if not child_id:
+        return jsonify({"success": False, "error": "No child selected"}), 400
+
+    conn = get_db_conn()
+    ecommerce = EcommerceIntegration(conn)
+
+    try:
+        data = request.json if request.is_json else {}
+        priority = data.get('priority', 0)
+        notes = data.get('notes', '')
+
+        success = ecommerce.add_to_wishlist(child_id, resource_id, priority, notes)
+        conn.close()
+
+        return jsonify({"success": success})
+
+    except Exception as e:
+        conn.close()
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/api/resource/wishlist/remove/<int:resource_id>", methods=["POST"])
+@login_required
+def api_wishlist_remove(resource_id):
+    """Remove resource from wishlist"""
+    child_id = session.get("selected_child")
+
+    if not child_id:
+        return jsonify({"success": False, "error": "No child selected"}), 400
+
+    conn = get_db_conn()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute("""
+            DELETE FROM resource_wishlists
+            WHERE child_id = %s AND resource_id = %s
+        """, (child_id, resource_id))
+
+        conn.commit()
+        cursor.close()
+        conn.close()
+
+        return jsonify({"success": True})
+
+    except Exception as e:
+        cursor.close()
+        conn.close()
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/dashboard/wishlist")
+@login_required
+def wishlist():
+    """View child's resource wishlist"""
+    child_id = session.get("selected_child")
+
+    if not child_id:
+        return redirect(url_for("select_child"))
+
+    conn = get_db_conn()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute(
+        "SELECT * FROM children WHERE id=%s AND parent_id=%s",
+        (child_id, current_user.id),
+    )
+    child = cursor.fetchone()
+
+    if not child:
+        cursor.close()
+        conn.close()
+        return redirect(url_for("dashboard"))
+
+    ecommerce = EcommerceIntegration(conn)
+    wishlist_items = ecommerce.get_wishlist(child_id)
+
+    for item in wishlist_items:
+        item['purchase_links'] = ecommerce.get_purchase_links(item['resource_id'])
+
+    total_items = len(wishlist_items)
+    total_original = sum(float(item['price_rm']) for item in wishlist_items)
+    total_current = sum(float(item['current_best_price'] or item['price_rm']) for item in wishlist_items)
+    total_savings = total_original - total_current
+
+    cursor.close()
+    conn.close()
+
+    return render_template(
+        "dashboard.html",
+        content_template="dashboard/_wishlist.html",
+        selected_child=child,
+        wishlist=wishlist_items,
+        total_items=total_items,
+        total_original=total_original,
+        total_current=total_current,
+        total_savings=total_savings,
+        active="wishlist",
+    )
 
 
 # -------------------------------------------------
