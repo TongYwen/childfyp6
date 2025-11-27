@@ -160,6 +160,24 @@ def is_valid_name(name: str) -> bool:
     pattern = r"^[A-Za-z\s]+$"
     return re.match(pattern, name.strip()) is not None
 
+
+def is_valid_grade_level(grade_level: str) -> bool:
+    """
+    Validate that grade level contains only alphanumeric characters and spaces.
+    No special characters like commas, periods, etc. are allowed.
+    Returns True if valid, False otherwise.
+    """
+    if not grade_level or not grade_level.strip():
+        return False
+    # Allow only letters, numbers, and spaces (e.g., "K1", "Pre-K", "A", "Preschool")
+    # Using a simple pattern that allows letters, numbers, hyphens, and spaces
+    pattern = r"^[A-Za-z0-9\s-]+$"
+    # Additional check: must be reasonable length (1-20 characters)
+    stripped = grade_level.strip()
+    if len(stripped) > 20:
+        return False
+    return re.match(pattern, stripped) is not None
+
 def normalize_role(role):
     if not role:
         return None
@@ -703,6 +721,17 @@ def children():
             conn.close()
             return render_template("select_child.html", children=children_list)
 
+        # Validate grade level contains only alphanumeric characters
+        if not is_valid_grade_level(grade_level):
+            flash("Grade level must contain only letters, numbers, hyphens, and spaces (e.g., A, K1, Pre-K).", "danger")
+            cursor.execute(
+                "SELECT * FROM children WHERE parent_id=%s", (current_user.id,)
+            )
+            children_list = cursor.fetchall()
+            cursor.close()
+            conn.close()
+            return render_template("select_child.html", children=children_list)
+
         cursor.execute(
             """
             INSERT INTO children
@@ -835,6 +864,11 @@ def add_child():
         flash("Child name must contain only alphabet letters and spaces.", "danger")
         return redirect(url_for("profile"))
 
+    # Validate grade level contains only alphanumeric characters
+    if not is_valid_grade_level(grade_level):
+        flash("Grade level must contain only letters, numbers, hyphens, and spaces (e.g., A, K1, Pre-K).", "danger")
+        return redirect(url_for("profile"))
+
     conn = get_db_conn()
     cursor = conn.cursor()
     cursor.execute(
@@ -893,6 +927,11 @@ def edit_child(child_id):
     # Validate name contains only alphabet letters
     if not is_valid_name(name):
         flash("Child name must contain only alphabet letters and spaces.", "danger")
+        return redirect(url_for("profile"))
+
+    # Validate grade level contains only alphanumeric characters
+    if not is_valid_grade_level(grade_level):
+        flash("Grade level must contain only letters, numbers, hyphens, and spaces (e.g., A, K1, Pre-K).", "danger")
         return redirect(url_for("profile"))
 
     conn = get_db_conn()
