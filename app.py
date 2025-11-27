@@ -665,10 +665,32 @@ def children():
     if request.method == "POST":
         name = request.form["name"]
         dob = request.form["dob"]
-        age = request.form["age"]
+        age_input = request.form["age"]
         grade_level = request.form["grade_level"]
         gender = request.form["gender"]
         notes = request.form.get("notes", "")
+
+        try:
+            age = int(age_input)
+        except ValueError:
+            flash("Age must be a number between 1 and 6.", "danger")
+            cursor.execute(
+                "SELECT * FROM children WHERE parent_id=%s", (current_user.id,)
+            )
+            children_list = cursor.fetchall()
+            cursor.close()
+            conn.close()
+            return render_template("select_child.html", children=children_list)
+
+        if age < 1 or age > 6:
+            flash("Age must be between 1 and 6.", "danger")
+            cursor.execute(
+                "SELECT * FROM children WHERE parent_id=%s", (current_user.id,)
+            )
+            children_list = cursor.fetchall()
+            cursor.close()
+            conn.close()
+            return render_template("select_child.html", children=children_list)
 
         # Validate name contains only alphabet letters
         if not is_valid_name(name):
@@ -793,10 +815,20 @@ def edit_profile():
 def add_child():
     name = request.form["name"]
     dob = request.form["dob"]
-    age = request.form["age"]
+    age_input = request.form["age"]
     grade_level = request.form["grade_level"]
     gender = request.form["gender"]
     notes = request.form.get("notes", "")
+
+    try:
+        age = int(age_input)
+    except ValueError:
+        flash("Age must be a number between 1 and 6.", "danger")
+        return redirect(url_for("profile"))
+
+    if age < 1 or age > 6:
+        flash("Age must be between 1 and 6.", "danger")
+        return redirect(url_for("profile"))
 
     # Validate name contains only alphabet letters
     if not is_valid_name(name):
@@ -843,10 +875,20 @@ def delete_child(child_id):
 def edit_child(child_id):
     name = request.form["name"]
     dob = request.form["dob"]
-    age = request.form["age"]
+    age_input = request.form["age"]
     grade_level = request.form["grade_level"]
     gender = request.form["gender"]
     notes = request.form.get("notes", "")
+
+    try:
+        age = int(age_input)
+    except ValueError:
+        flash("Age must be a number between 1 and 6.", "danger")
+        return redirect(url_for("profile"))
+
+    if age < 1 or age > 6:
+        flash("Age must be between 1 and 6.", "danger")
+        return redirect(url_for("profile"))
 
     # Validate name contains only alphabet letters
     if not is_valid_name(name):
