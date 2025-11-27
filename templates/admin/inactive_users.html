@@ -1,0 +1,269 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Inactive User Management</h2>
+    <p class="text-muted">Monitor and manage user account activity and automatic deletion.</p>
+
+    <!-- Manual Cleanup Button -->
+    <div class="mb-3">
+        <form method="POST" action="{{ url_for('admin_run_cleanup') }}" style="display:inline;">
+            <button type="submit" class="btn btn-warning" onclick="return confirm('This will send warning emails and delete inactive accounts. Continue?');">
+                Run Cleanup Now
+            </button>
+        </form>
+        <small class="text-muted ms-2">Manually trigger the automated cleanup process</small>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card border-danger">
+                <div class="card-body text-center">
+                    <h5 class="card-title text-danger">Pending Deletion</h5>
+                    <h2>{{ users.pending_deletion|length }}</h2>
+                    <small class="text-muted">30+ days inactive</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-warning">
+                <div class="card-body text-center">
+                    <h5 class="card-title text-warning">At Risk</h5>
+                    <h2>{{ users.at_risk|length }}</h2>
+                    <small class="text-muted">23-29 days inactive</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-success">
+                <div class="card-body text-center">
+                    <h5 class="card-title text-success">Active</h5>
+                    <h2>{{ users.active|length }}</h2>
+                    <small class="text-muted">Less than 23 days</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-primary">
+                <div class="card-body text-center">
+                    <h5 class="card-title text-primary">Protected</h5>
+                    <h2>{{ users.protected|length }}</h2>
+                    <small class="text-muted">Safe from deletion</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pending Deletion Section -->
+    {% if users.pending_deletion %}
+    <div class="card border-danger mb-4">
+        <div class="card-header bg-danger text-white">
+            <h4 class="mb-0">Pending Deletion (30+ days inactive)</h4>
+        </div>
+        <div class="card-body">
+            <p class="text-danger"><strong>These accounts will be automatically deleted on the next cleanup run.</strong></p>
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Role</th>
+                        <th>Last Login</th>
+                        <th>Days Inactive</th>
+                        <th>Warning Sent</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for u in users.pending_deletion %}
+                    <tr>
+                        <td>{{ u.id }}</td>
+                        <td>{{ u.name }}</td>
+                        <td>{{ u.email }}</td>
+                        <td>{{ u.role }}</td>
+                        <td>{{ u.last_login or 'Never' }}</td>
+                        <td><span class="badge bg-danger">{{ u.days_inactive }} days</span></td>
+                        <td>{{ u.inactive_warning_sent or 'No' }}</td>
+                        <td>
+                            <form method="POST" action="{{ url_for('admin_toggle_user_protection', user_id=u.id) }}" style="display:inline;">
+                                <button type="submit" class="btn btn-sm btn-primary" title="Protect from deletion">
+                                    Protect
+                                </button>
+                            </form>
+                            <form method="POST" action="{{ url_for('admin_activate_user', user_id=u.id) }}" style="display:inline;">
+                                <button type="submit" class="btn btn-sm btn-success" title="Reactivate account">
+                                    Reactivate
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- At Risk Section -->
+    {% if users.at_risk %}
+    <div class="card border-warning mb-4">
+        <div class="card-header bg-warning">
+            <h4 class="mb-0">At Risk (23-29 days inactive)</h4>
+        </div>
+        <div class="card-body">
+            <p class="text-muted">These users will receive warning emails and may be deleted soon.</p>
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Role</th>
+                        <th>Last Login</th>
+                        <th>Days Inactive</th>
+                        <th>Warning Sent</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for u in users.at_risk %}
+                    <tr>
+                        <td>{{ u.id }}</td>
+                        <td>{{ u.name }}</td>
+                        <td>{{ u.email }}</td>
+                        <td>{{ u.role }}</td>
+                        <td>{{ u.last_login or 'Never' }}</td>
+                        <td><span class="badge bg-warning">{{ u.days_inactive }} days</span></td>
+                        <td>{{ u.inactive_warning_sent or 'No' }}</td>
+                        <td>
+                            <form method="POST" action="{{ url_for('admin_toggle_user_protection', user_id=u.id) }}" style="display:inline;">
+                                <button type="submit" class="btn btn-sm btn-primary" title="Protect from deletion">
+                                    Protect
+                                </button>
+                            </form>
+                            <form method="POST" action="{{ url_for('admin_activate_user', user_id=u.id) }}" style="display:inline;">
+                                <button type="submit" class="btn btn-sm btn-success" title="Reactivate account">
+                                    Reactivate
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Protected Users Section -->
+    {% if users.protected %}
+    <div class="card border-primary mb-4">
+        <div class="card-header bg-primary text-white">
+            <h4 class="mb-0">Protected Users</h4>
+        </div>
+        <div class="card-body">
+            <p class="text-muted">These users are protected from automatic deletion.</p>
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Role</th>
+                        <th>Last Login</th>
+                        <th>Days Inactive</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for u in users.protected %}
+                    <tr>
+                        <td>{{ u.id }}</td>
+                        <td>{{ u.name }}</td>
+                        <td>{{ u.email }}</td>
+                        <td>{{ u.role }}</td>
+                        <td>{{ u.last_login or 'Never' }}</td>
+                        <td><span class="badge bg-secondary">{{ u.days_inactive }} days</span></td>
+                        <td>
+                            <form method="POST" action="{{ url_for('admin_toggle_user_protection', user_id=u.id) }}" style="display:inline;">
+                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Remove protection">
+                                    Unprotect
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Active Users Section (Collapsed by default) -->
+    <div class="card border-success mb-4">
+        <div class="card-header bg-success text-white">
+            <h4 class="mb-0">
+                <a class="text-white text-decoration-none" data-bs-toggle="collapse" href="#activeUsers" role="button" aria-expanded="false">
+                    Active Users ({{ users.active|length }}) - Click to expand
+                </a>
+            </h4>
+        </div>
+        <div class="collapse" id="activeUsers">
+            <div class="card-body">
+                <p class="text-muted">Users who have logged in recently (less than 23 days).</p>
+                {% if users.active %}
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Role</th>
+                            <th>Last Login</th>
+                            <th>Days Inactive</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for u in users.active %}
+                        <tr>
+                            <td>{{ u.id }}</td>
+                            <td>{{ u.name }}</td>
+                            <td>{{ u.email }}</td>
+                            <td>{{ u.role }}</td>
+                            <td>{{ u.last_login or 'Never' }}</td>
+                            <td><span class="badge bg-success">{{ u.days_inactive }} days</span></td>
+                            <td>
+                                <form method="POST" action="{{ url_for('admin_toggle_user_protection', user_id=u.id) }}" style="display:inline;">
+                                    <button type="submit" class="btn btn-sm btn-outline-primary" title="Protect from deletion">
+                                        Protect
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p class="text-muted">No active users found.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Information Box -->
+    <div class="alert alert-info">
+        <h5>How it works:</h5>
+        <ul>
+            <li><strong>23 days:</strong> Users receive first warning email (7 days before deletion)</li>
+            <li><strong>28 days:</strong> Users receive final warning email (2 days before deletion)</li>
+            <li><strong>30 days:</strong> Accounts are automatically deleted (unless protected)</li>
+            <li><strong>Protected:</strong> Users marked as protected will never be automatically deleted</li>
+            <li><strong>Reactivate:</strong> Manually reset a user's last_login to today's date</li>
+        </ul>
+        <p class="mb-0"><strong>Note:</strong> The cleanup process should be run daily via cron job. You can also trigger it manually using the "Run Cleanup Now" button above.</p>
+    </div>
+</div>
+{% endblock %}

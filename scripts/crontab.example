@@ -1,0 +1,35 @@
+# Inactive User Cleanup Cron Job Configuration
+# ==============================================
+#
+# This file contains example cron job configurations for running
+# the automated inactive user cleanup script.
+#
+# To install this cron job:
+# 1. Edit this file and replace /path/to/childfyp6 with the actual path
+# 2. Run: crontab -e
+# 3. Add one of the lines below (remove the # comment)
+# 4. Save and exit
+#
+# The script will log output to logs/cleanup.log
+# Make sure the logs directory exists: mkdir -p /path/to/childfyp6/logs
+
+# Run cleanup daily at 2:00 AM
+# 0 2 * * * cd /path/to/childfyp6 && /usr/bin/python3 scripts/cleanup_inactive_users.py >> logs/cleanup.log 2>&1
+
+# Run cleanup daily at midnight
+# 0 0 * * * cd /path/to/childfyp6 && /usr/bin/python3 scripts/cleanup_inactive_users.py >> logs/cleanup.log 2>&1
+
+# Run cleanup daily at 3:00 AM with email notification (requires mail setup)
+# 0 3 * * * cd /path/to/childfyp6 && /usr/bin/python3 scripts/cleanup_inactive_users.py >> logs/cleanup.log 2>&1 || echo "Cleanup failed" | mail -s "Cleanup Error" admin@example.com
+
+# Run cleanup every 12 hours (at midnight and noon)
+# 0 0,12 * * * cd /path/to/childfyp6 && /usr/bin/python3 scripts/cleanup_inactive_users.py >> logs/cleanup.log 2>&1
+
+# Explanation of cron syntax:
+# * * * * * command to execute
+# │ │ │ │ │
+# │ │ │ │ └─── day of week (0 - 7) (Sunday=0 or 7)
+# │ │ │ └───── month (1 - 12)
+# │ │ └─────── day of month (1 - 31)
+# │ └───────── hour (0 - 23)
+# └─────────── minute (0 - 59)

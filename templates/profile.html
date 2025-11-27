@@ -2,6 +2,34 @@
 {% block content %}
 <div class="container mt-4">
 
+  <!-- Inactivity Warning Banner -->
+  {% if inactivity_warning %}
+  <div class="alert {% if inactivity_warning.is_critical %}alert-danger{% else %}alert-warning{% endif %} alert-dismissible fade show" role="alert">
+    <h4 class="alert-heading">
+      {% if inactivity_warning.is_critical %}
+        <i class="fas fa-exclamation-triangle"></i> URGENT: Account Deletion Warning!
+      {% else %}
+        <i class="fas fa-exclamation-circle"></i> Account Inactivity Warning
+      {% endif %}
+    </h4>
+    <p>
+      {% if inactivity_warning.days_until_deletion > 0 %}
+        Your account has been inactive for <strong>{{ inactivity_warning.days_inactive }} days</strong>.
+        Your account will be automatically deleted in <strong>{{ inactivity_warning.days_until_deletion }} days</strong> if you don't log in.
+      {% else %}
+        Your account has been inactive for <strong>{{ inactivity_warning.days_inactive }} days</strong> and is scheduled for deletion.
+        Please contact an administrator if you believe this is an error.
+      {% endif %}
+    </p>
+    <hr>
+    <p class="mb-0">
+      <strong>Good news!</strong> By logging in today, you have reactivated your account. Your account is now safe from automatic deletion.
+      To keep your account active in the future, please log in at least once every 30 days.
+    </p>
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+  </div>
+  {% endif %}
+
   <!-- User Profile Card -->
   <div class="card mb-4 shadow-sm">
     <div class="card-header d-flex justify-content-between align-items-center bg-primary text-white">

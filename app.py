@@ -464,14 +464,28 @@ def login():
         conn = get_db_conn()
         cursor = conn.cursor(dictionary=True)
         cursor.execute(
-            "SELECT id, name, email, password, role FROM users WHERE email = %s",
+            "SELECT id, name, email, password, role, is_active FROM users WHERE email = %s",
             (email,),
         )
         user = cursor.fetchone()
-        cursor.close()
-        conn.close()
 
         if user and bcrypt.check_password_hash(user["password"], password):
+            # Check if account is active
+            if not user.get("is_active", 1):
+                flash("Your account has been deactivated. Please contact an administrator.", "danger")
+                cursor.close()
+                conn.close()
+                return redirect(url_for("login"))
+
+            # Update last_login timestamp and reactivate account
+            cursor.execute(
+                "UPDATE users SET last_login = %s, is_active = 1, inactive_warning_sent = NULL WHERE id = %s",
+                (datetime.now(), user["id"])
+            )
+            conn.commit()
+            cursor.close()
+            conn.close()
+
             user_obj = User(
                 user["id"], user["name"], user["email"], user["role"]
             )
@@ -498,6 +512,11 @@ def login():
             else:
                 return redirect(url_for("profile"))
 
+        # Close connection if authentication fails
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
         flash("Invalid credentials.", "danger")
         return redirect(url_for("login"))
 
@@ -565,6 +584,332 @@ If you didn't request this, you can safely ignore this email.
 </html>
 """
     mail.send(msg)
+
+
+def send_inactivity_warning_email(to_email, user_name, days_until_deletion):
+    """Send warning email to user about upcoming account deletion due to inactivity"""
+    login_url = url_for("login", _external=True)
+    msg = Message(
+        "ChildGrowth Insights - Account Inactivity Warning",
+        recipients=[to_email]
+    )
+
+    msg.body = f"""
+Hello {user_name},
+
+We noticed that you haven't logged into your ChildGrowth Insights account in a while.
+
+Your account will be automatically deleted in {days_until_deletion} days due to inactivity (30 days without login).
+
+To keep your account active, simply log in:
+{login_url}
+
+If you have any questions or concerns, please contact our support team.
+
+Best regards,
+ChildGrowth Insights Team
+"""
+
+    msg.html = f"""
+<html>
+  <body style="font-family: Arial, sans-serif; background-color: #f4f6f8; margin: 0; padding: 0;">
+    <table width="100%" cellpadding="0" cellspacing="0">
+      <tr>
+        <td align="center" style="padding: 30px 0;">
+          <table width="600" cellpadding="0" cellspacing="0" style="background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+            <tr>
+              <td style="background: #ffc107; padding: 20px; text-align: center; color: #000000; font-size: 22px; font-weight: bold;">
+                ⚠️ Account Inactivity Warning
+              </td>
+            </tr>
+            <tr>
+              <td style="padding: 30px; color: #333333; font-size: 16px;">
+                <p>Hello <strong>{user_name}</strong>,</p>
+                <p>We noticed that you haven't logged into your <strong>ChildGrowth Insights</strong> account in a while.</p>
+                <p style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0;">
+                  <strong>⏰ Your account will be automatically deleted in {days_until_deletion} days</strong> due to inactivity (30 days without login).
+                </p>
+                <p>To keep your account active and prevent deletion, simply log in:</p>
+                <p style="text-align: center; margin: 30px 0;">
+                  <a href="{login_url}" style="background: #0d6efd; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
+                    Log In Now
+                  </a>
+                </p>
+                <p>If you have any questions or concerns, please contact our support team.</p>
+                <p>Best regards,<br><strong>ChildGrowth Insights Team</strong></p>
+              </td>
+            </tr>
+            <tr>
+              <td style="background: #f4f6f8; text-align: center; padding: 15px; font-size: 12px; color: #888888;">
+                &copy; 2025 ChildGrowth Insights. All rights reserved.
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
+"""
+    mail.send(msg)
+
+
+def send_final_warning_email(to_email, user_name, days_until_deletion):
+    """Send final warning email before account deletion"""
+    login_url = url_for("login", _external=True)
+    msg = Message(
+        "ChildGrowth Insights - URGENT: Account Deletion in {days_until_deletion} Days",
+        recipients=[to_email]
+    )
+
+    msg.body = f"""
+Hello {user_name},
+
+URGENT: Your ChildGrowth Insights account will be permanently deleted in {days_until_deletion} days!
+
+This is your final warning. Your account has been inactive for nearly 30 days.
+
+To prevent deletion and keep all your data, log in immediately:
+{login_url}
+
+Once deleted, all your children's data, assessments, and progress records will be permanently lost and cannot be recovered.
+
+Please act now to save your account.
+
+Best regards,
+ChildGrowth Insights Team
+"""
+
+    msg.html = f"""
+<html>
+  <body style="font-family: Arial, sans-serif; background-color: #f4f6f8; margin: 0; padding: 0;">
+    <table width="100%" cellpadding="0" cellspacing="0">
+      <tr>
+        <td align="center" style="padding: 30px 0;">
+          <table width="600" cellpadding="0" cellspacing="0" style="background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+            <tr>
+              <td style="background: #dc3545; padding: 20px; text-align: center; color: #ffffff; font-size: 22px; font-weight: bold;">
+                🚨 URGENT: Account Deletion Warning
+              </td>
+            </tr>
+            <tr>
+              <td style="padding: 30px; color: #333333; font-size: 16px;">
+                <p>Hello <strong>{user_name}</strong>,</p>
+                <p><strong style="color: #dc3545; font-size: 18px;">URGENT: Your account will be permanently deleted in {days_until_deletion} days!</strong></p>
+                <p style="background: #f8d7da; border-left: 4px solid #dc3545; padding: 15px; margin: 20px 0;">
+                  This is your <strong>final warning</strong>. Your <strong>ChildGrowth Insights</strong> account has been inactive for nearly 30 days.
+                </p>
+                <p>To prevent deletion and keep all your data, log in immediately:</p>
+                <p style="text-align: center; margin: 30px 0;">
+                  <a href="{login_url}" style="background: #dc3545; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
+                    Log In Now to Save Account
+                  </a>
+                </p>
+                <p style="background: #fff3cd; padding: 15px; border-radius: 6px;">
+                  ⚠️ <strong>Important:</strong> Once deleted, all your children's data, assessments, and progress records will be <strong>permanently lost</strong> and cannot be recovered.
+                </p>
+                <p>Please act now to save your account.</p>
+                <p>Best regards,<br><strong>ChildGrowth Insights Team</strong></p>
+              </td>
+            </tr>
+            <tr>
+              <td style="background: #f4f6f8; text-align: center; padding: 15px; font-size: 12px; color: #888888;">
+                &copy; 2025 ChildGrowth Insights. All rights reserved.
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
+"""
+    mail.send(msg)
+
+
+def send_deletion_confirmation_email(to_email, user_name):
+    """Send confirmation email after account has been deleted"""
+    msg = Message(
+        "ChildGrowth Insights - Account Deleted",
+        recipients=[to_email]
+    )
+
+    msg.body = f"""
+Hello {user_name},
+
+Your ChildGrowth Insights account has been permanently deleted due to 30 days of inactivity.
+
+All your data, including children's profiles, assessments, and progress records, has been removed from our system.
+
+If you believe this was done in error or would like to create a new account, please contact our support team.
+
+Thank you for using ChildGrowth Insights.
+
+Best regards,
+ChildGrowth Insights Team
+"""
+
+    msg.html = f"""
+<html>
+  <body style="font-family: Arial, sans-serif; background-color: #f4f6f8; margin: 0; padding: 0;">
+    <table width="100%" cellpadding="0" cellspacing="0">
+      <tr>
+        <td align="center" style="padding: 30px 0;">
+          <table width="600" cellpadding="0" cellspacing="0" style="background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+            <tr>
+              <td style="background: #6c757d; padding: 20px; text-align: center; color: #ffffff; font-size: 22px; font-weight: bold;">
+                Account Deleted
+              </td>
+            </tr>
+            <tr>
+              <td style="padding: 30px; color: #333333; font-size: 16px;">
+                <p>Hello <strong>{user_name}</strong>,</p>
+                <p>Your <strong>ChildGrowth Insights</strong> account has been permanently deleted due to 30 days of inactivity.</p>
+                <p style="background: #e2e3e5; border-left: 4px solid #6c757d; padding: 15px; margin: 20px 0;">
+                  All your data, including children's profiles, assessments, and progress records, has been removed from our system.
+                </p>
+                <p>If you believe this was done in error or would like to create a new account, please contact our support team.</p>
+                <p>Thank you for using ChildGrowth Insights.</p>
+                <p>Best regards,<br><strong>ChildGrowth Insights Team</strong></p>
+              </td>
+            </tr>
+            <tr>
+              <td style="background: #f4f6f8; text-align: center; padding: 15px; font-size: 12px; color: #888888;">
+                &copy; 2025 ChildGrowth Insights. All rights reserved.
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
+"""
+    mail.send(msg)
+
+
+def check_inactive_users():
+    """
+    Automated function to check for inactive users and take action:
+    - 23+ days: Send first warning (7 days until deletion)
+    - 28+ days: Send final warning (2 days until deletion)
+    - 30+ days: Delete account (unless protected)
+
+    This function should be called daily by a cron job or scheduler.
+    """
+    from datetime import datetime, timedelta
+
+    conn = get_db_conn()
+    cursor = conn.cursor(dictionary=True)
+
+    now = datetime.now()
+    warning_threshold = now - timedelta(days=23)  # 7 days before deletion
+    final_warning_threshold = now - timedelta(days=28)  # 2 days before deletion
+    deletion_threshold = now - timedelta(days=30)  # Delete after 30 days
+
+    # Track statistics
+    stats = {
+        'warnings_sent': 0,
+        'final_warnings_sent': 0,
+        'accounts_deleted': 0,
+        'errors': []
+    }
+
+    try:
+        # 1. Find users who need first warning (23+ days inactive, no warning sent yet)
+        cursor.execute("""
+            SELECT id, name, email, last_login
+            FROM users
+            WHERE is_active = 1
+            AND protected_from_deletion = 0
+            AND last_login IS NOT NULL
+            AND last_login <= %s
+            AND inactive_warning_sent IS NULL
+        """, (warning_threshold,))
+
+        users_for_warning = cursor.fetchall()
+        for user in users_for_warning:
+            try:
+                send_inactivity_warning_email(user['email'], user['name'], 7)
+                cursor.execute(
+                    "UPDATE users SET inactive_warning_sent = %s WHERE id = %s",
+                    (now, user['id'])
+                )
+                conn.commit()
+                stats['warnings_sent'] += 1
+            except Exception as e:
+                stats['errors'].append(f"Error sending warning to {user['email']}: {str(e)}")
+
+        # 2. Find users who need final warning (28+ days inactive, warning already sent)
+        cursor.execute("""
+            SELECT id, name, email, last_login
+            FROM users
+            WHERE is_active = 1
+            AND protected_from_deletion = 0
+            AND last_login IS NOT NULL
+            AND last_login <= %s
+            AND inactive_warning_sent IS NOT NULL
+        """, (final_warning_threshold,))
+
+        users_for_final_warning = cursor.fetchall()
+        for user in users_for_final_warning:
+            try:
+                send_final_warning_email(user['email'], user['name'], 2)
+                stats['final_warnings_sent'] += 1
+            except Exception as e:
+                stats['errors'].append(f"Error sending final warning to {user['email']}: {str(e)}")
+
+        # 3. Find and delete users inactive for 30+ days (not protected)
+        cursor.execute("""
+            SELECT id, name, email, last_login
+            FROM users
+            WHERE is_active = 1
+            AND protected_from_deletion = 0
+            AND last_login IS NOT NULL
+            AND last_login <= %s
+        """, (deletion_threshold,))
+
+        users_for_deletion = cursor.fetchall()
+        for user in users_for_deletion:
+            try:
+                # Send deletion confirmation email before deleting
+                send_deletion_confirmation_email(user['email'], user['name'])
+
+                # Delete user (cascade will handle related data)
+                cursor.execute("DELETE FROM users WHERE id = %s", (user['id'],))
+                conn.commit()
+                stats['accounts_deleted'] += 1
+            except Exception as e:
+                stats['errors'].append(f"Error deleting user {user['email']}: {str(e)}")
+                conn.rollback()
+
+        # 4. Also check for users who have never logged in and were created 30+ days ago
+        cursor.execute("""
+            SELECT id, name, email, created_at
+            FROM users
+            WHERE is_active = 1
+            AND protected_from_deletion = 0
+            AND last_login IS NULL
+            AND created_at <= %s
+        """, (deletion_threshold,))
+
+        never_logged_in_users = cursor.fetchall()
+        for user in never_logged_in_users:
+            try:
+                send_deletion_confirmation_email(user['email'], user['name'])
+                cursor.execute("DELETE FROM users WHERE id = %s", (user['id'],))
+                conn.commit()
+                stats['accounts_deleted'] += 1
+            except Exception as e:
+                stats['errors'].append(f"Error deleting never-logged-in user {user['email']}: {str(e)}")
+                conn.rollback()
+
+    finally:
+        cursor.close()
+        conn.close()
+
+    return stats
+
 
 @app.route("/forgot", methods=["GET", "POST"])
 def forgot():
@@ -837,6 +1182,8 @@ def children():
 @app.route("/profile", methods=["GET", "POST"])
 @login_required
 def profile():
+    from datetime import datetime, timedelta
+
     conn = get_db_conn()
     cursor = conn.cursor(dictionary=True)
 
@@ -848,12 +1195,40 @@ def profile():
     )
     children = cursor.fetchall()
 
+    # Calculate inactivity warning
+    inactivity_warning = None
+    if user and user.get('last_login'):
+        now = datetime.now()
+        last_login = user['last_login']
+        if isinstance(last_login, str):
+            last_login = datetime.fromisoformat(last_login)
+        days_inactive = (now - last_login).days
+
+        if days_inactive >= 23 and not user.get('protected_from_deletion'):
+            days_until_deletion = 30 - days_inactive
+            if days_until_deletion > 0:
+                inactivity_warning = {
+                    'days_inactive': days_inactive,
+                    'days_until_deletion': days_until_deletion,
+                    'is_critical': days_inactive >= 28
+                }
+            elif days_until_deletion <= 0:
+                inactivity_warning = {
+                    'days_inactive': days_inactive,
+                    'days_until_deletion': 0,
+                    'is_critical': True
+                }
+
     cursor.close()
     conn.close()
 
     # tests removed from profile in Option A – just pass empty list
     return render_template(
-        "profile.html", user=user, children=children, tests=[]
+        "profile.html",
+        user=user,
+        children=children,
+        tests=[],
+        inactivity_warning=inactivity_warning
     )
 
 @app.route("/admin/profile")
@@ -2722,6 +3097,164 @@ def admin_delete_test(test_id):
 
     flash("Test deleted.", "success")
     return redirect(url_for("admin_tests"))
+
+
+# -------------------------------------------------
+# ADMIN - INACTIVE USER MANAGEMENT
+# -------------------------------------------------
+@app.route("/admin/inactive-users")
+@login_required
+@roles_required("admin")
+def admin_inactive_users():
+    """Admin page to view and manage inactive users"""
+    from datetime import datetime, timedelta
+
+    conn = get_db_conn()
+    cursor = conn.cursor(dictionary=True)
+
+    now = datetime.now()
+    warning_threshold = now - timedelta(days=23)
+    final_warning_threshold = now - timedelta(days=28)
+    deletion_threshold = now - timedelta(days=30)
+
+    # Get all users with their activity status
+    cursor.execute("""
+        SELECT
+            id,
+            name,
+            email,
+            role,
+            created_at,
+            last_login,
+            is_active,
+            protected_from_deletion,
+            inactive_warning_sent,
+            CASE
+                WHEN last_login IS NULL THEN DATEDIFF(%s, created_at)
+                ELSE DATEDIFF(%s, last_login)
+            END as days_inactive
+        FROM users
+        ORDER BY
+            CASE WHEN last_login IS NULL THEN created_at ELSE last_login END ASC
+    """, (now, now))
+
+    users = cursor.fetchall()
+
+    # Categorize users
+    categorized_users = {
+        'at_risk': [],  # 23-29 days
+        'pending_deletion': [],  # 30+ days
+        'protected': [],  # Protected from deletion
+        'active': []  # Less than 23 days
+    }
+
+    for user in users:
+        days_inactive = user['days_inactive']
+
+        if user['protected_from_deletion']:
+            categorized_users['protected'].append(user)
+        elif days_inactive >= 30:
+            categorized_users['pending_deletion'].append(user)
+        elif days_inactive >= 23:
+            categorized_users['at_risk'].append(user)
+        else:
+            categorized_users['active'].append(user)
+
+    cursor.close()
+    conn.close()
+
+    return render_template(
+        "admin/inactive_users.html",
+        users=categorized_users,
+        now=now
+    )
+
+
+@app.route("/admin/users/<int:user_id>/toggle-protection", methods=["POST"])
+@login_required
+@roles_required("admin")
+def admin_toggle_user_protection(user_id):
+    """Toggle protection status for a user"""
+    conn = get_db_conn()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute(
+        "SELECT protected_from_deletion, name FROM users WHERE id = %s",
+        (user_id,)
+    )
+    user = cursor.fetchone()
+
+    if not user:
+        flash("User not found.", "danger")
+        cursor.close()
+        conn.close()
+        return redirect(url_for("admin_inactive_users"))
+
+    new_status = 0 if user['protected_from_deletion'] else 1
+    cursor.execute(
+        "UPDATE users SET protected_from_deletion = %s WHERE id = %s",
+        (new_status, user_id)
+    )
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+    status_text = "protected from" if new_status else "no longer protected from"
+    flash(f"User {user['name']} is now {status_text} automatic deletion.", "success")
+    return redirect(url_for("admin_inactive_users"))
+
+
+@app.route("/admin/users/<int:user_id>/activate", methods=["POST"])
+@login_required
+@roles_required("admin")
+def admin_activate_user(user_id):
+    """Manually activate a user and reset their last_login"""
+    from datetime import datetime
+
+    conn = get_db_conn()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute("SELECT name FROM users WHERE id = %s", (user_id,))
+    user = cursor.fetchone()
+
+    if not user:
+        flash("User not found.", "danger")
+        cursor.close()
+        conn.close()
+        return redirect(url_for("admin_inactive_users"))
+
+    cursor.execute(
+        "UPDATE users SET is_active = 1, last_login = %s, inactive_warning_sent = NULL WHERE id = %s",
+        (datetime.now(), user_id)
+    )
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+    flash(f"User {user['name']} has been reactivated.", "success")
+    return redirect(url_for("admin_inactive_users"))
+
+
+@app.route("/admin/run-cleanup", methods=["POST"])
+@login_required
+@roles_required("admin")
+def admin_run_cleanup():
+    """Manually trigger the inactive user cleanup process"""
+    try:
+        stats = check_inactive_users()
+        flash(
+            f"Cleanup completed: {stats['warnings_sent']} warnings sent, "
+            f"{stats['final_warnings_sent']} final warnings sent, "
+            f"{stats['accounts_deleted']} accounts deleted.",
+            "success"
+        )
+        if stats['errors']:
+            for error in stats['errors']:
+                flash(error, "warning")
+    except Exception as e:
+        flash(f"Error running cleanup: {str(e)}", "danger")
+
+    return redirect(url_for("admin_inactive_users"))
 
 
 # -------------------------------------------------
