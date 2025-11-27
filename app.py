@@ -122,7 +122,7 @@ def check_session_timeout():
 
         # Get last activity time
         last_activity = datetime.fromisoformat(session['last_activity'])
-        timeout_duration = timedelta(minutes=30)
+        timeout_duration = timedelta(minutes=2)  # 2 min for testing
 
         # Check if session has expired
         if datetime.now() - last_activity > timeout_duration:

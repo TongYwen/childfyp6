@@ -24,5 +24,5 @@ class Config:
     SESSION_COOKIE_SECURE = False  # Set to True in production with HTTPS
     SESSION_COOKIE_HTTPONLY = True  # Prevents JavaScript access to session cookie
     SESSION_COOKIE_SAMESITE = 'Lax'  # CSRF protection
-    PERMANENT_SESSION_LIFETIME = timedelta(minutes=30)  # Parent session timeout
+    PERMANENT_SESSION_LIFETIME = timedelta(minutes=2)  # Parent session timeout (2 min for testing)
     SESSION_REFRESH_EACH_REQUEST = False  # Manual control of session refresh
