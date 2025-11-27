@@ -114,8 +114,11 @@ def check_session_timeout():
 
     # Only apply timeout to parent users
     if normalize_role(current_user.role) == "parent":
+        print(f"[DEBUG] Parent user detected: {current_user.email}")
+
         # Check if this is the first request (login)
         if 'last_activity' not in session:
+            print(f"[DEBUG] First request - setting last_activity")
             session['last_activity'] = datetime.now().isoformat()
             session.permanent = True
             return
@@ -123,9 +126,15 @@ def check_session_timeout():
         # Get last activity time
         last_activity = datetime.fromisoformat(session['last_activity'])
         timeout_duration = timedelta(minutes=2)  # 2 min for testing
+        time_since_last = datetime.now() - last_activity
+
+        print(f"[DEBUG] Last activity: {last_activity}")
+        print(f"[DEBUG] Time since last activity: {time_since_last.total_seconds()} seconds")
+        print(f"[DEBUG] Timeout duration: {timeout_duration.total_seconds()} seconds")
 
         # Check if session has expired
         if datetime.now() - last_activity > timeout_duration:
+            print(f"[DEBUG] SESSION EXPIRED! Logging out user.")
             # Clear session and logout
             session.clear()
             logout_user()
@@ -134,9 +143,11 @@ def check_session_timeout():
 
         # Update last activity time
         session['last_activity'] = datetime.now().isoformat()
+        print(f"[DEBUG] Activity updated: {session['last_activity']}")
 
     # Admins don't have timeout - set permanent session
     elif normalize_role(current_user.role) == "admin":
+        print(f"[DEBUG] Admin user detected: {current_user.email} - No timeout")
         session.permanent = True
 
 
