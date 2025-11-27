@@ -3,5 +3,6 @@ mysql-connector-python
 flask-bcrypt
 flask-login
 flask-mail
+flask-apscheduler
 itsdangerous
 python-dotenv
