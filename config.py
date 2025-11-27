@@ -21,7 +21,7 @@ class Config:
     ADMIN_PASSKEY = os.getenv("ADMIN_PASSKEY")
 
 # Session management configuration
-    SESSION_COOKIE_SECURE = False  # Set to True in production with HTTPS
+    SESSION_COOKIE_SECURE = True  # Enabled for production HTTPS
     SESSION_COOKIE_HTTPONLY = True  # Prevents JavaScript access to session cookie
     SESSION_COOKIE_SAMESITE = 'Lax'  # CSRF protection
     PERMANENT_SESSION_LIFETIME = timedelta(minutes=2)  # Parent session timeout

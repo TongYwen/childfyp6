@@ -124,7 +124,7 @@ def check_session_timeout():
 
         # Get last activity time
         last_activity = datetime.fromisoformat(session['last_activity'])
-        timeout_duration = timedelta(minutes=2)
+        timeout_duration = app.config['PERMANENT_SESSION_LIFETIME']
 
         # Check if session has expired
         if datetime.now() - last_activity > timeout_duration:
