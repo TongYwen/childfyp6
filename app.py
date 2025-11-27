@@ -97,7 +97,6 @@ def load_user(user_id):
         return User(row["id"], row["name"], row["email"], row["role"])
     return None
 
-
 # -------------------------------------------------
 # Session Management Middleware
 # -------------------------------------------------
@@ -107,7 +106,9 @@ def check_session_timeout():
     Role-based session timeout:
     - Parents: 30 minute timeout
     - Admins: No timeout
+
     """
+
     # Skip timeout check for static files and non-authenticated routes
     if request.endpoint and (request.endpoint == 'static' or not current_user.is_authenticated):
         return
@@ -120,9 +121,10 @@ def check_session_timeout():
             session.permanent = True
             return
 
+
         # Get last activity time
         last_activity = datetime.fromisoformat(session['last_activity'])
-        timeout_duration = timedelta(minutes=30)
+        timeout_duration = timedelta(minutes=2)
 
         # Check if session has expired
         if datetime.now() - last_activity > timeout_duration:
@@ -138,7 +140,6 @@ def check_session_timeout():
     # Admins don't have timeout - set permanent session
     elif normalize_role(current_user.role) == "admin":
         session.permanent = True
-
 
 # -------------------------------------------------
 # Helpers
@@ -524,7 +525,7 @@ def reset_password(token):
                 "New password and confirmation do not match.", "danger"
             )
             return redirect(url_for("reset_password", token=token))
-
+            
         if not is_strong_password(new_password):
             flash(
                 "Password must be at least 8 characters long and include one uppercase letter, one lowercase letter, and one symbol.",
@@ -555,6 +556,13 @@ def reset_password(token):
 @app.route("/select-child", methods=["GET", "POST"])
 @login_required
 def select_child():
+    if normalize_role(current_user.role) == "admin":
+        flash(
+            "Admins cannot select a child profile. Please use the admin dashboard.",
+            "warning",
+        )
+        return redirect(url_for("admin_dashboard"))
+        
     conn = get_db_conn()
     cursor = conn.cursor(dictionary=True)
     cursor.execute(
@@ -723,6 +731,20 @@ def profile():
         "profile.html", user=user, children=children, tests=[]
     )
 
+@app.route("/admin/profile")
+@roles_required("admin")
+def admin_profile():
+    conn = get_db_conn()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute("SELECT * FROM users WHERE id=%s", (current_user.id,))
+    user = cursor.fetchone()
+
+    cursor.close()
+    conn.close()
+
+    return render_template("admin/profile.html", user=user)
+
 @app.route("/profile/edit", methods=["POST"])
 @login_required
 def edit_profile():
@@ -732,9 +754,28 @@ def edit_profile():
     # Validate name contains only alphabet letters
     if not is_valid_name(name):
         flash("Name must contain only alphabet letters and spaces.", "danger")
-        return redirect(url_for("profile"))  
+        return redirect(url_for("profile"))
+
+    if not EMAIL_REGEX.match(email):
+        flash("Please enter a valid email address.", "danger")
+        return redirect(url_for("profile"))
 
     conn = get_db_conn()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute(
+        "SELECT id FROM users WHERE email = %s AND id != %s",
+        (email, current_user.id),
+    )
+    existing_user = cursor.fetchone()
+
+    if existing_user:
+        cursor.close()
+        conn.close()
+        flash("An account with this email already exists.", "danger")
+        return redirect(url_for("profile"))
+    
+    cursor.close()
     cursor = conn.cursor()
     cursor.execute(
         "UPDATE users SET name=%s, email=%s WHERE id=%s",
@@ -863,18 +904,21 @@ def academic_progress():
         month = request.form.get("month", type=int)
 
         if subject and score is not None and year and month:
-            record_date = date(year, month, 1)
-            cursor.execute(
-                """
-                INSERT INTO academic_scores (child_id, subject, score, date)
-                VALUES (%s, %s, %s, %s)
-                """,
-                (child_id, subject, score, record_date),
-            )
-            conn.commit()
-            flash("Academic record added successfully!", "success")
+
+          if 0 <= score <= 100:
+                record_date = date(year, month, 1)
+                cursor.execute(
+                    """
+                    INSERT INTO academic_scores (child_id, subject, score, date)
+                    VALUES (%s, %s, %s, %s)
+                    """,
+                    (child_id, subject, score, record_date),
+                )
+                conn.commit()
+                flash("Academic record added successfully!", "success")
+                
         else:
-            flash("Please fill in all fields.", "danger")
+                flash("Score must be between 0 and 100.", "danger")
 
         cursor.close()
         conn.close()

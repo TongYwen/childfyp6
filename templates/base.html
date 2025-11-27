@@ -25,8 +25,9 @@
     <!-- Navbar (hidden on login page) -->
     <nav class="navbar navbar-expand-lg navbar-dark navbar-gradient">
       <div class="container">
-        <a class="navbar-brand fw-bold d-flex align-items-center" href="{{ url_for('select_child') }}">
-          <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" 
+        {% set is_admin = current_user.is_authenticated and (current_user.role|lower == 'admin') %}
+        <a class="navbar-brand fw-bold d-flex align-items-center" href="{{ url_for('admin_dashboard' if is_admin else 'select_child') }}">
+          <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo"
             style="height: 40px; width: auto; margin-right: 10px;">
           ChildGrowth Insights
         </a>
@@ -43,7 +44,7 @@
               <span class="nav-link">Hi, {{ current_user.name }}</span>
             </li>
             <li class="nav-item">
-              <a class="nav-link" href="{{ url_for('profile') }}" title="Profile">
+              <a class="nav-link" href="{{ url_for('admin_profile' if is_admin else 'profile') }}" title="Profile">
                 <i class="fa-solid fa-user-circle"></i>
               </a>
             </li>
