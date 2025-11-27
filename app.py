@@ -796,11 +796,12 @@ ChildGrowth Insights Team
 
 def check_inactive_users():
     """
-    Automated function to check for inactive users and take action:
+    Automated function to check for inactive PARENT users and take action:
     - 23+ days: Send first warning (7 days until deletion)
     - 28+ days: Send final warning (2 days until deletion)
     - 30+ days: Delete account (unless protected)
 
+    NOTE: Admin accounts are EXCLUDED from automatic deletion.
     This function should be called daily by a cron job or scheduler.
     """
     from datetime import datetime, timedelta
@@ -822,11 +823,12 @@ def check_inactive_users():
     }
 
     try:
-        # 1. Find users who need first warning (23+ days inactive, no warning sent yet)
+        # 1. Find PARENT users who need first warning (23+ days inactive, no warning sent yet)
         cursor.execute("""
             SELECT id, name, email, last_login
             FROM users
-            WHERE is_active = 1
+            WHERE role = 'parent'
+            AND is_active = 1
             AND protected_from_deletion = 0
             AND last_login IS NOT NULL
             AND last_login <= %s
@@ -846,11 +848,12 @@ def check_inactive_users():
             except Exception as e:
                 stats['errors'].append(f"Error sending warning to {user['email']}: {str(e)}")
 
-        # 2. Find users who need final warning (28+ days inactive, warning already sent)
+        # 2. Find PARENT users who need final warning (28+ days inactive, warning already sent)
         cursor.execute("""
             SELECT id, name, email, last_login
             FROM users
-            WHERE is_active = 1
+            WHERE role = 'parent'
+            AND is_active = 1
             AND protected_from_deletion = 0
             AND last_login IS NOT NULL
             AND last_login <= %s
@@ -865,11 +868,12 @@ def check_inactive_users():
             except Exception as e:
                 stats['errors'].append(f"Error sending final warning to {user['email']}: {str(e)}")
 
-        # 3. Find and delete users inactive for 30+ days (not protected)
+        # 3. Find and delete PARENT users inactive for 30+ days (not protected)
         cursor.execute("""
             SELECT id, name, email, last_login
             FROM users
-            WHERE is_active = 1
+            WHERE role = 'parent'
+            AND is_active = 1
             AND protected_from_deletion = 0
             AND last_login IS NOT NULL
             AND last_login <= %s
@@ -889,11 +893,12 @@ def check_inactive_users():
                 stats['errors'].append(f"Error deleting user {user['email']}: {str(e)}")
                 conn.rollback()
 
-        # 4. Also check for users who have never logged in and were created 30+ days ago
+        # 4. Also check for PARENT users who have never logged in and were created 30+ days ago
         cursor.execute("""
             SELECT id, name, email, created_at
             FROM users
-            WHERE is_active = 1
+            WHERE role = 'parent'
+            AND is_active = 1
             AND protected_from_deletion = 0
             AND last_login IS NULL
             AND created_at <= %s
@@ -3131,7 +3136,7 @@ def admin_delete_test(test_id):
 @login_required
 @roles_required("admin")
 def admin_inactive_users():
-    """Admin page to view and manage inactive users"""
+    """Admin page to view and manage inactive PARENT users (admins are excluded)"""
     from datetime import datetime, timedelta
 
     conn = get_db_conn()
@@ -3142,7 +3147,7 @@ def admin_inactive_users():
     final_warning_threshold = now - timedelta(days=28)
     deletion_threshold = now - timedelta(days=30)
 
-    # Get all users with their activity status
+    # Get all PARENT users with their activity status (admins excluded)
     cursor.execute("""
         SELECT
             id,
@@ -3159,6 +3164,7 @@ def admin_inactive_users():
                 ELSE DATEDIFF(%s, last_login)
             END as days_inactive
         FROM users
+        WHERE role = 'parent'
         ORDER BY
             CASE WHEN last_login IS NULL THEN created_at ELSE last_login END ASC
     """, (now, now))
