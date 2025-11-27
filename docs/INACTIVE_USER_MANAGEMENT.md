@@ -53,7 +53,15 @@ Run the migration script to update your database:
 mysql -u username -p database_name < db/migrations/add_inactive_user_management.sql
 ```
 
-### 2. Verify Email Configuration
+### 2. Install Dependencies
+Install the required Python package:
+```bash
+pip install flask-apscheduler
+# OR
+pip install -r requirements.txt
+```
+
+### 3. Verify Email Configuration
 Ensure your `.env` file has proper email settings:
 ```env
 MAIL_SERVER=smtp.gmail.com
@@ -64,9 +72,40 @@ MAIL_USE_TLS=True
 MAIL_DEFAULT_SENDER=your-email@gmail.com
 ```
 
-### 3. Set Up Automated Cleanup (Cron Job)
+### 4. Automated Cleanup (Built-in Scheduler)
 
-#### Option A: Using crontab
+**✅ Default Method: Flask-APScheduler (No Cron Needed!)**
+
+The system now uses Flask-APScheduler to run cleanup automatically. When you start your Flask app, the scheduler starts automatically and runs cleanup daily at 2:00 AM UTC.
+
+```bash
+python app.py
+# You'll see: ✅ APScheduler started - Inactive user cleanup will run daily at 2:00 AM UTC
+```
+
+**That's it!** As long as your Flask app is running, cleanup runs automatically daily.
+
+#### Customizing the Schedule
+
+To change the cleanup time, edit `app.py` line ~923:
+
+```python
+# Default: Daily at 2:00 AM UTC
+@scheduler.task('cron', id='cleanup_inactive_users', hour=2, minute=0)
+
+# Example: Daily at midnight
+@scheduler.task('cron', id='cleanup_inactive_users', hour=0, minute=0)
+
+# Example: Every 12 hours
+@scheduler.task('cron', id='cleanup_inactive_users', hour='*/12', minute=0)
+
+# Example: Weekly on Monday at 3 AM
+@scheduler.task('cron', id='cleanup_inactive_users', day_of_week='mon', hour=3, minute=0)
+```
+
+**Note:** You can still use the manual "Run Cleanup Now" button in the admin dashboard anytime!
+
+#### Alternative: Using crontab (Optional - if you prefer external cron)
 ```bash
 # Edit crontab
 crontab -e

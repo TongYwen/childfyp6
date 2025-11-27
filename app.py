@@ -8,6 +8,7 @@ from flask_login import (
     login_required, logout_user, current_user
 )
 from flask_mail import Mail, Message
+from flask_apscheduler import APScheduler
 from itsdangerous import URLSafeTimedSerializer
 import mysql.connector
 from datetime import date, datetime, timedelta
@@ -45,6 +46,11 @@ login_manager = LoginManager(app)
 login_manager.login_view = "login"
 mail = Mail(app)
 serializer = URLSafeTimedSerializer(app.config["SECRET_KEY"])
+
+# Initialize APScheduler for automated tasks
+scheduler = APScheduler()
+app.config['SCHEDULER_API_ENABLED'] = False  # Disable API for security
+app.config['SCHEDULER_TIMEZONE'] = 'UTC'  # Set timezone
 
 EMAIL_REGEX = re.compile(r"^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$")
 ADMIN_PASSKEY = "child1234"
@@ -909,6 +915,25 @@ def check_inactive_users():
         conn.close()
 
     return stats
+
+
+# -------------------------------------------------
+# SCHEDULED TASKS (APScheduler)
+# -------------------------------------------------
+@scheduler.task('cron', id='cleanup_inactive_users', hour=2, minute=0)
+def scheduled_cleanup_inactive_users():
+    """
+    Scheduled task to run inactive user cleanup daily at 2:00 AM UTC.
+    This runs automatically when the Flask app is running.
+    """
+    with app.app_context():
+        try:
+            stats = check_inactive_users()
+            app.logger.info(f"Scheduled cleanup completed: {stats}")
+        except Exception as e:
+            app.logger.error(f"Scheduled cleanup failed: {e}")
+            import traceback
+            traceback.print_exc()
 
 
 @app.route("/forgot", methods=["GET", "POST"])
@@ -3272,4 +3297,9 @@ def index():
 
 
 if __name__ == "__main__":
+    # Initialize and start the scheduler for automated tasks
+    scheduler.init_app(app)
+    scheduler.start()
+    print("✅ APScheduler started - Inactive user cleanup will run daily at 2:00 AM UTC")
+
     app.run(debug=True, use_reloader=True)
