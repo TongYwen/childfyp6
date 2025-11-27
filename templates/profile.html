@@ -50,8 +50,19 @@
       <!-- Children Tab -->
       <div class="tab-pane fade show active" id="childrenTab" role="tabpanel">
         <div class="d-flex justify-content-between mb-3">
-          <input type="text" id="childSearch" class="form-control form-control-sm" 
-                 placeholder="Search child..." style="width:200px;">
+          <div class="d-flex gap-2">
+            <input type="text" id="childSearch" class="form-control form-control-sm"
+                   placeholder="Search by name..." style="width:200px;">
+            <select id="ageFilter" class="form-select form-select-sm" style="width:150px;">
+              <option value="">All Ages</option>
+              <option value="1">Age 1</option>
+              <option value="2">Age 2</option>
+              <option value="3">Age 3</option>
+              <option value="4">Age 4</option>
+              <option value="5">Age 5</option>
+              <option value="6">Age 6</option>
+            </select>
+          </div>
           <button class="btn btn-sm btn-primary ms-2" data-bs-toggle="modal" data-bs-target="#addChildModal">
             + Add Child
           </button>
@@ -273,17 +284,35 @@
 <script>
 document.addEventListener("DOMContentLoaded", function () {
 
-  // Child search filter
-  const search = document.getElementById("childSearch");
-  if (search) {
-    search.addEventListener("keyup", function() {
-      let filter = this.value.toLowerCase();
-      let rows = document.querySelectorAll("#childrenTable tbody tr");
-      rows.forEach(row => {
-        let name = row.querySelector("td").textContent.toLowerCase();
-        row.style.display = name.includes(filter) ? "" : "none";
-      });
+  // Combined child filter by name and age
+  const nameSearch = document.getElementById("childSearch");
+  const ageFilter = document.getElementById("ageFilter");
+
+  function filterChildren() {
+    const nameValue = nameSearch ? nameSearch.value.toLowerCase() : "";
+    const ageValue = ageFilter ? ageFilter.value : "";
+    const rows = document.querySelectorAll("#childrenTable tbody tr");
+
+    rows.forEach(row => {
+      const cells = row.querySelectorAll("td");
+      if (cells.length < 2) return;
+
+      const name = cells[0].textContent.toLowerCase(); // First column: Name
+      const age = cells[1].textContent.trim();         // Second column: Age
+
+      const nameMatch = name.includes(nameValue);
+      const ageMatch = !ageValue || age === ageValue;
+
+      row.style.display = (nameMatch && ageMatch) ? "" : "none";
     });
+  }
+
+  if (nameSearch) {
+    nameSearch.addEventListener("keyup", filterChildren);
+  }
+
+  if (ageFilter) {
+    ageFilter.addEventListener("change", filterChildren);
   }
 
   // Dynamic Questions: Works for all modals
