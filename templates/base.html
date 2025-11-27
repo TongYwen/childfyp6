@@ -19,9 +19,11 @@
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
-<body>
+ <body>
 
-  {% if request.endpoint not in ['login', 'register', 'register_select', 'register_parent', 'register_admin', 'reset_password', 'forgot'] %}
+   {% set _flashes = get_flashed_messages(with_categories=true) %}
+
+    {% if request.endpoint not in ['login', 'register', 'register_select', 'register_parent', 'register_admin', 'reset_password', 'forgot'] %}
     <!-- Navbar (hidden on login page) -->
     <nav class="navbar navbar-expand-lg navbar-dark navbar-gradient">
       <div class="container">
@@ -61,10 +63,9 @@
 
   {% block content %}{% endblock %}
 
-  {% set _flashes = get_flashed_messages(with_categories=true) %}
-  {% if _flashes %}
-    <script>
-    document.addEventListener("DOMContentLoaded", function () {
+{% if _flashes %}
+      <script>
+      document.addEventListener("DOMContentLoaded", function () {
       const flashes = {{ _flashes|tojson }};
 
       flashes.forEach(item => {

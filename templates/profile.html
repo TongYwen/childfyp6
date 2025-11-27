@@ -9,15 +9,11 @@
       <div>
 
         <button class="btn btn-sm btn-light me-2" data-bs-toggle="modal" data-bs-target="#changePasswordModal">
-
           <i class="fas fa-key"></i>
-
         </button>
 
         <button class="btn btn-sm btn-light" data-bs-toggle="modal" data-bs-target="#editProfileModal">
-
           <i class="fas fa-pencil-alt"></i>
-
         </button>
 
       </div>
@@ -40,9 +36,7 @@
             </button>
           </li>
 
-          
       </ul>
-
     </div>
 
     <div class="card-body tab-content">
@@ -116,11 +110,16 @@
                         <div class="row">
                           <div class="col-md-4 mb-3">
                             <label class="form-label">Age</label>
-                            <input type="number" name="age" value="{{ child.age }}" class="form-control" required>
+                            <input type="number" name="age" value="{{ child.age }}" class="form-control" min="1" max="6" required>
                           </div>
                           <div class="col-md-4 mb-3">
                             <label class="form-label">Grade Level</label>
-                            <input type="text" name="grade_level" value="{{ child.grade_level }}" class="form-control" required>
+                            <input type="text" name="grade_level" value="{{ child.grade_level }}" class="form-control"
+                                   pattern="[A-Za-z0-9\s-]+"
+                                   title="Only letters, numbers, hyphens, and spaces allowed (e.g., A, K1, Pre-K)"
+                                   maxlength="20"
+                                   placeholder="e.g., A, K1, Pre-K"
+                                   required>
                           </div>
                           <div class="col-md-4 mb-3">
                             <label class="form-label">Gender</label>
@@ -128,7 +127,6 @@
                               <option value="">Select</option>
                               <option value="male"   {% if child.gender == 'male' %}selected{% endif %}>Male</option>
                               <option value="female" {% if child.gender == 'female' %}selected{% endif %}>Female</option>
-                              <option value="other"  {% if child.gender == 'other' %}selected{% endif %}>Other</option>
                             </select>
                           </div>
                         </div>
@@ -139,6 +137,7 @@
                       </div>
                       <div class="modal-footer">
                         <button type="submit" class="btn btn-success">Save</button>
+                        <button type="button" class="btn btn-danger px-4" data-bs-dismiss="modal">Cancel</button>
                       </div>
                     </form>
                   </div>
@@ -175,6 +174,7 @@
         </div>
         <div class="modal-footer">
           <button type="submit" class="btn btn-success">Save</button>
+          <button type="button" class="btn btn-danger px-4" data-bs-dismiss="modal">Cancel</button>
         </div>
       </form>
     </div>
@@ -262,6 +262,7 @@
         </div>
         <div class="modal-footer">
           <button type="submit" class="btn btn-primary">Save</button>
+          <button type="button" class="btn btn-danger px-4" data-bs-dismiss="modal">Cancel</button>
         </div>
       </form>
     </div>

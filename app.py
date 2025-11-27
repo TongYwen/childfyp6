@@ -160,6 +160,85 @@ def is_valid_name(name: str) -> bool:
     pattern = r"^[A-Za-z\s]+$"
     return re.match(pattern, name.strip()) is not None
 
+def is_valid_grade_level(grade_level: str) -> bool:
+    """
+    Validate that grade level contains only alphanumeric characters and spaces.
+    No special characters like commas, periods, etc. are allowed.
+    Returns True if valid, False otherwise.
+    """
+    if not grade_level or not grade_level.strip():
+        return False
+
+    # Allow only letters, numbers, and spaces (e.g., "K1", "Pre-K", "A", "Preschool")
+    # Using a simple pattern that allows letters, numbers, hyphens, and spaces
+    pattern = r"^[A-Za-z0-9\s-]+$"
+
+    # Additional check: must be reasonable length (1-20 characters)
+    stripped = grade_level.strip()
+    if len(stripped) > 20:
+        return False
+    return re.match(pattern, stripped) is not None
+
+def is_valid_dob(dob_str: str) -> tuple:
+
+    """
+    Validate date of birth.
+    Returns (is_valid, error_message) tuple.
+    - Cannot be in the future
+    - Cannot be more than 18 years ago (reasonable for preschool app)
+    """
+    if not dob_str:
+        return (False, "Date of birth is required.")
+    try:
+        dob = datetime.strptime(dob_str, "%Y-%m-%d").date()
+    except ValueError:
+        return (False, "Invalid date format. Please use YYYY-MM-DD.")
+    today = date.today()
+
+    # Check if date is in the future
+    if dob > today:
+        return (False, "Date of birth cannot be in the future.")
+
+    # Check if date is more than 18 years ago (unrealistic for preschool app)
+    eighteen_years_ago = date(today.year - 18, today.month, today.day)
+    if dob < eighteen_years_ago:
+        return (False, "Date of birth cannot be more than 18 years ago.")
+    return (True, None)
+
+def is_valid_academic_date(year: int, month: int) -> tuple:
+
+    """
+    Validate academic record date (year and month).
+    Returns (is_valid, error_message) tuple.
+    - Year must be between 2000 and current year
+    - Month must be between 1 and 12
+    - Date cannot be in the future
+    """
+
+    if not year or not month:
+        return (False, "Year and month are required.")
+
+    # Validate month range
+    if month < 1 or month > 12:
+        return (False, "Month must be between 1 and 12.")
+
+    current_year = date.today().year
+
+    # Validate year range (reasonable for educational records)
+    if year < 2000:
+        return (False, f"Year cannot be before 2000.")
+
+    if year > current_year:
+        return (False, f"Year cannot be in the future.")
+
+    # Check if the date is in the future
+    today = date.today()
+    record_date = date(year, month, 1)
+
+    if record_date > today:
+        return (False, "Academic record date cannot be in the future.")
+    return (True, None)
+
 def normalize_role(role):
     if not role:
         return None
@@ -702,6 +781,31 @@ def children():
             cursor.close()
             conn.close()
             return render_template("select_child.html", children=children_list)
+        
+        # Validate grade level contains only alphanumeric characters
+        if not is_valid_grade_level(grade_level):
+            flash("Grade level must contain only letters, numbers, hyphens, and spaces (e.g., A, K1, Pre-K).", "danger")
+
+            cursor.execute(
+                "SELECT * FROM children WHERE parent_id=%s", (current_user.id,)
+            )
+            children_list = cursor.fetchall()
+            cursor.close()
+            conn.close()
+            return render_template("select_child.html", children=children_list)
+        
+        # Validate date of birth
+        is_valid, error_msg = is_valid_dob(dob)
+        if not is_valid:
+            flash(error_msg, "danger")
+            cursor.execute(
+                "SELECT * FROM children WHERE parent_id=%s", (current_user.id,)
+            )
+
+            children_list = cursor.fetchall()
+            cursor.close()
+            conn.close()
+            return render_template("select_child.html", children=children_list)
 
         cursor.execute(
             """
@@ -834,6 +938,18 @@ def add_child():
     if not is_valid_name(name):
         flash("Child name must contain only alphabet letters and spaces.", "danger")
         return redirect(url_for("profile"))
+    
+    # Validate grade level contains only alphanumeric characters
+    if not is_valid_grade_level(grade_level):
+        flash("Grade level must contain only letters, numbers, hyphens, and spaces (e.g., A, K1, Pre-K).", "danger")
+        return redirect(url_for("profile"))
+    
+    # Validate date of birth
+    is_valid, error_msg = is_valid_dob(dob)
+    if not is_valid:
+
+        flash(error_msg, "danger")
+        return redirect(url_for("profile"))
 
     conn = get_db_conn()
     cursor = conn.cursor()
@@ -894,7 +1010,18 @@ def edit_child(child_id):
     if not is_valid_name(name):
         flash("Child name must contain only alphabet letters and spaces.", "danger")
         return redirect(url_for("profile"))
+    # Validate grade level contains only alphanumeric characters
 
+    if not is_valid_grade_level(grade_level):
+        flash("Grade level must contain only letters, numbers, hyphens, and spaces (e.g., A, K1, Pre-K).", "danger")
+        return redirect(url_for("profile"))
+
+# Validate date of birth
+    is_valid, error_msg = is_valid_dob(dob)
+    if not is_valid:
+        flash(error_msg, "danger")
+        return redirect(url_for("profile"))
+    
     conn = get_db_conn()
     cursor = conn.cursor()
     cursor.execute(
@@ -945,21 +1072,34 @@ def academic_progress():
         month = request.form.get("month", type=int)
 
         if subject and score is not None and year and month:
-
-          if 0 <= score <= 100:
-                record_date = date(year, month, 1)
-                cursor.execute(
-                    """
-                    INSERT INTO academic_scores (child_id, subject, score, date)
-                    VALUES (%s, %s, %s, %s)
-                    """,
-                    (child_id, subject, score, record_date),
-                )
-                conn.commit()
-                flash("Academic record added successfully!", "success")
-                
-        else:
+            # Validate score range
+            if not (0 <= score <= 100):
                 flash("Score must be between 0 and 100.", "danger")
+                cursor.close()
+                conn.close()
+                return redirect(url_for("academic_progress"))
+
+            # Validate academic date
+            is_valid, error_msg = is_valid_academic_date(year, month)
+            if not is_valid:
+                flash(error_msg, "danger")
+                cursor.close()
+                conn.close()
+                return redirect(url_for("academic_progress"))
+
+            # All validations passed, insert record
+            record_date = date(year, month, 1)
+            cursor.execute(
+                """
+                INSERT INTO academic_scores (child_id, subject, score, date)
+                VALUES (%s, %s, %s, %s)
+                """,
+                (child_id, subject, score, record_date),
+            )
+            conn.commit()
+            flash("Academic record added successfully!", "success")
+        else:
+            flash("Please fill all required fields.", "danger")
 
         cursor.close()
         conn.close()
