@@ -1,11 +1,39 @@
 """
-Unit tests for date validation functions
+Unit tests for validation functions
 Run with: python3 test_date_validation.py
 """
 import sys
 from datetime import date, datetime
 
 # Standalone copies of validation functions for testing
+def is_valid_grade_level(grade_level: str) -> tuple:
+    """Validate grade level (copy from app.py for testing)"""
+    if not grade_level or not grade_level.strip():
+        return (False, "Grade level is required.")
+
+    grade = grade_level.strip()
+
+    # Check if it contains only digits (reject pure numbers)
+    if grade.isdigit():
+        return (False, "Grade level must contain alphabet letters, not just numbers.")
+
+    # Check if it contains at least one alphabet letter
+    if not any(c.isalpha() for c in grade):
+        return (False, "Grade level must contain at least one alphabet letter.")
+
+    # Allowed alphabetic grade levels (case-insensitive)
+    allowed_text_grades = [
+        "pre-k", "prek", "kindergarten", "k", "k1", "k2", "k3", "k4", "k5", "k6",
+        "nursery", "toddler", "infant", "preschool", "daycare"
+    ]
+
+    # Check if it's a valid text grade (case-insensitive)
+    if grade.lower() in allowed_text_grades:
+        return (True, None)
+
+    # Invalid grade level
+    return (False, "Invalid grade level. Please enter Pre-K, Kindergarten, K1, K2, Nursery, Preschool, or similar.")
+
 def is_valid_dob(dob_str: str) -> tuple:
     """Validate date of birth (copy from app.py for testing)"""
     if not dob_str:
@@ -125,17 +153,60 @@ def test_academic_date_validation():
     print(f"\nAcademic Date Tests: {passed} passed, {failed} failed\n")
     return failed == 0
 
+def test_grade_level_validation():
+    """Test Grade Level validation"""
+    print("=" * 60)
+    print("Testing Grade Level Validation")
+    print("=" * 60)
+
+    tests = [
+        # (grade_level, should_pass, description)
+        ("Pre-K", True, "Valid: Pre-K"),
+        ("Kindergarten", True, "Valid: Kindergarten"),
+        ("K1", True, "Valid: K1"),
+        ("K2", True, "Valid: K2"),
+        ("Nursery", True, "Valid: Nursery"),
+        ("Preschool", True, "Valid: Preschool"),
+        ("k", True, "Valid: K (lowercase)"),
+        ("KINDERGARTEN", True, "Valid: KINDERGARTEN (uppercase)"),
+        ("1", False, "Invalid: Pure number '1'"),
+        ("5", False, "Invalid: Pure number '5'"),
+        ("", False, "Invalid: Empty string"),
+        ("   ", False, "Invalid: Only spaces"),
+        ("123", False, "Invalid: Pure numbers '123'"),
+        ("Grade1", False, "Invalid: Not in allowed list"),
+    ]
+
+    passed = 0
+    failed = 0
+
+    for grade, should_pass, description in tests:
+        is_valid, error_msg = is_valid_grade_level(grade)
+
+        if is_valid == should_pass:
+            print(f"✓ PASS: {description}")
+            passed += 1
+        else:
+            print(f"✗ FAIL: {description}")
+            print(f"  Expected: {'Valid' if should_pass else 'Invalid'}")
+            print(f"  Got: {'Valid' if is_valid else f'Invalid - {error_msg}'}")
+            failed += 1
+
+    print(f"\nGrade Level Tests: {passed} passed, {failed} failed\n")
+    return failed == 0
+
 def main():
     """Run all tests"""
     print("\n" + "=" * 60)
-    print("DATE VALIDATION TEST SUITE")
+    print("VALIDATION TEST SUITE")
     print("=" * 60 + "\n")
 
+    grade_pass = test_grade_level_validation()
     dob_pass = test_dob_validation()
     academic_pass = test_academic_date_validation()
 
     print("=" * 60)
-    if dob_pass and academic_pass:
+    if grade_pass and dob_pass and academic_pass:
         print("✓ ALL TESTS PASSED!")
         print("=" * 60)
         return 0

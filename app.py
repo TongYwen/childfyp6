@@ -221,6 +221,40 @@ def is_valid_academic_date(year: int, month: int) -> tuple:
 
     return (True, None)
 
+def is_valid_grade_level(grade_level: str) -> tuple:
+    """
+    Validate grade level.
+    Returns (is_valid, error_message) tuple.
+    Accepts common preschool/early education grade levels with alphabet letters:
+    - Pre-K, PreK, Kindergarten, K, K1, K2, Nursery, Toddler, Infant, Preschool
+    - Must contain alphabet letters (pure numbers are not allowed)
+    """
+    if not grade_level or not grade_level.strip():
+        return (False, "Grade level is required.")
+
+    grade = grade_level.strip()
+
+    # Check if it contains only digits (reject pure numbers)
+    if grade.isdigit():
+        return (False, "Grade level must contain alphabet letters, not just numbers.")
+
+    # Check if it contains at least one alphabet letter
+    if not any(c.isalpha() for c in grade):
+        return (False, "Grade level must contain at least one alphabet letter.")
+
+    # Allowed alphabetic grade levels (case-insensitive)
+    allowed_text_grades = [
+        "pre-k", "prek", "kindergarten", "k", "k1", "k2", "k3", "k4", "k5", "k6",
+        "nursery", "toddler", "infant", "preschool", "daycare"
+    ]
+
+    # Check if it's a valid text grade (case-insensitive)
+    if grade.lower() in allowed_text_grades:
+        return (True, None)
+
+    # Invalid grade level
+    return (False, "Invalid grade level. Please enter Pre-K, Kindergarten, K1, K2, Nursery, Preschool, or similar.")
+
 def normalize_role(role):
     if not role:
         return None
@@ -764,6 +798,18 @@ def children():
             conn.close()
             return render_template("select_child.html", children=children_list)
 
+        # Validate grade level
+        is_valid, error_msg = is_valid_grade_level(grade_level)
+        if not is_valid:
+            flash(error_msg, "danger")
+            cursor.execute(
+                "SELECT * FROM children WHERE parent_id=%s", (current_user.id,)
+            )
+            children_list = cursor.fetchall()
+            cursor.close()
+            conn.close()
+            return render_template("select_child.html", children=children_list)
+
         # Validate date of birth
         is_valid, error_msg = is_valid_dob(dob)
         if not is_valid:
@@ -908,6 +954,12 @@ def add_child():
         flash("Child name must contain only alphabet letters and spaces.", "danger")
         return redirect(url_for("profile"))
 
+    # Validate grade level
+    is_valid, error_msg = is_valid_grade_level(grade_level)
+    if not is_valid:
+        flash(error_msg, "danger")
+        return redirect(url_for("profile"))
+
     # Validate date of birth
     is_valid, error_msg = is_valid_dob(dob)
     if not is_valid:
@@ -972,6 +1024,12 @@ def edit_child(child_id):
     # Validate name contains only alphabet letters
     if not is_valid_name(name):
         flash("Child name must contain only alphabet letters and spaces.", "danger")
+        return redirect(url_for("profile"))
+
+    # Validate grade level
+    is_valid, error_msg = is_valid_grade_level(grade_level)
+    if not is_valid:
+        flash(error_msg, "danger")
         return redirect(url_for("profile"))
 
     # Validate date of birth
