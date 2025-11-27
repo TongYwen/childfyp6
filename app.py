@@ -128,11 +128,9 @@ def check_session_timeout():
 
         # Check if session has expired
         if datetime.now() - last_activity > timeout_duration:
-            # Flash message BEFORE clearing session (flash uses session storage)
-            flash("Your session has expired due to inactivity. Please log in again.", "warning")
-            # Clear session and logout
+            # Logout user and show timeout message
             logout_user()
-            session.clear()
+            flash("Your session has expired due to inactivity. Please log in again.", "warning")
             return redirect(url_for('login'))
 
         # Update last activity time
