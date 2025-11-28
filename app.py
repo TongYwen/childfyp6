@@ -664,7 +664,7 @@ def send_final_warning_email(to_email, user_name, days_until_deletion):
     """Send final warning email before account deletion"""
     login_url = url_for("login", _external=True)
     msg = Message(
-        "ChildGrowth Insights - URGENT: Account Deletion in {days_until_deletion} Days",
+        f"ChildGrowth Insights - URGENT: Account Deletion in {days_until_deletion} Days",
         recipients=[to_email]
     )
 
