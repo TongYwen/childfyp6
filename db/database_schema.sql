@@ -297,7 +297,9 @@ CREATE TABLE `users` (
   `last_login` timestamp NULL DEFAULT NULL,
   `is_active` tinyint(1) DEFAULT 1,
   `protected_from_deletion` tinyint(1) DEFAULT 0,
-  `inactive_warning_sent` timestamp NULL DEFAULT NULL
+  `inactive_warning_sent` timestamp NULL DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  `deletion_reason` varchar(255) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --

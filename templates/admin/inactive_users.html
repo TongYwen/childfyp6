@@ -5,14 +5,17 @@
     <h2>Inactive Parent User Management</h2>
     <p class="text-muted">Monitor and manage parent account activity and automatic deletion. <strong>Admin accounts are excluded from automatic deletion.</strong></p>
 
-    <!-- Manual Cleanup Button -->
+    <!-- Action Buttons -->
     <div class="mb-3">
         <form method="POST" action="{{ url_for('admin_run_cleanup') }}" style="display:inline;">
             <button type="submit" class="btn btn-warning" onclick="return confirm('This will send warning emails and delete inactive accounts. Continue?');">
                 Run Cleanup Now
             </button>
         </form>
-        <small class="text-muted ms-2">Manually trigger the automated cleanup process</small>
+        <a href="{{ url_for('admin_deleted_users') }}" class="btn btn-secondary ms-2">
+            🗑️ View Deleted Accounts
+        </a>
+        <small class="text-muted ms-2 d-block mt-2">Manually trigger cleanup or view/restore deleted accounts</small>
     </div>
 
     <!-- Summary Cards -->
