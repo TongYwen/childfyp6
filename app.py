@@ -708,7 +708,7 @@ ChildGrowth Insights Team
             <tr>
               <td style="padding: 30px; color: #333333; font-size: 16px;">
                 <p>Hello <strong>{user_name}</strong>,</p>
-                <p><strong style="color: #dc3545; font-size: 18px;">URGENT: Your account will be permanently deleted in {days_until_deletion} days!</strong></p>
+                <p><strong style="color: #dc3545; font-size: 18px;">URGENT: Your account will be deleted in {days_until_deletion} days!</strong></p>
                 <p style="background: #f8d7da; border-left: 4px solid #dc3545; padding: 15px; margin: 20px 0;">
                   This is your <strong>final warning</strong>. Your <strong>ChildGrowth Insights</strong> account has been inactive for nearly 30 days.
                 </p>
@@ -719,7 +719,7 @@ ChildGrowth Insights Team
                   </a>
                 </p>
                 <p style="background: #fff3cd; padding: 15px; border-radius: 6px;">
-                  ⚠️ <strong>Important:</strong> Once deleted, all your children's data, assessments, and progress records will be <strong>permanently lost</strong> and cannot be recovered.
+                  ⚠️ <strong>Important:</strong> Once deleted, all your children's data, assessments, and progress records will be <strong>permanently lost</strong>.
                 </p>
                 <p>Please act now to save your account.</p>
                 <p>Best regards,<br><strong>ChildGrowth Insights Team</strong></p>
@@ -750,13 +750,20 @@ def send_deletion_confirmation_email(to_email, user_name):
     msg.body = f"""
 Hello {user_name},
 
-Your ChildGrowth Insights account has been permanently deleted due to 30 days of inactivity.
+Your ChildGrowth Insights account has been deactivated due to 30 days of inactivity.
 
-All your data, including children's profiles, assessments, and progress records, has been removed from our system.
+IMPORTANT: Your account can still be restored within the next 90 days!
 
-If you believe this was done in error or would like to create a new account, please contact our support team.
+Your data, including children's profiles, assessments, and progress records, has been preserved and can be recovered if you contact our support team to restore your account.
 
-Thank you for using ChildGrowth Insights.
+To restore your account:
+- Contact our support team 
+- Request account restoration
+- Your account and all data will be fully restored
+
+After 90 days, the account and data will be permanently deleted and cannot be recovered.
+
+If you have any questions or would like to restore your account, please contact our support team.
 
 Best regards,
 ChildGrowth Insights Team
@@ -776,13 +783,22 @@ ChildGrowth Insights Team
             </tr>
             <tr>
               <td style="padding: 30px; color: #333333; font-size: 16px;">
-                <p>Hello <strong>{user_name}</strong>,</p>
-                <p>Your <strong>ChildGrowth Insights</strong> account has been permanently deleted due to 30 days of inactivity.</p>
-                <p style="background: #e2e3e5; border-left: 4px solid #6c757d; padding: 15px; margin: 20px 0;">
-                  All your data, including children's profiles, assessments, and progress records, has been removed from our system.
+                <p>Your <strong>ChildGrowth Insights</strong> account has been deactivated due to 30 days of inactivity.</p>
+                <p style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0;">
+                  <strong>⚠️ IMPORTANT:</strong> Your account can still be <strong>restored within the next 90 days!</strong>
                 </p>
-                <p>If you believe this was done in error or would like to create a new account, please contact our support team.</p>
-                <p>Thank you for using ChildGrowth Insights.</p>
+                <p>Your data, including children's profiles, assessments, and progress records, has been <strong>preserved</strong> and can be recovered if you contact our support team to restore your account.</p>
+                <p style="background: #d1ecf1; border-left: 4px solid #0dcaf0; padding: 15px; margin: 20px 0;">
+                  <strong>To restore your account:</strong><br>
+                  • Contact our support team or administrator<br>
+                  • Request account restoration<br>
+                  • Your account and all data will be fully restored
+                </p>
+                <p style="background: #f8d7da; border-left: 4px solid #dc3545; padding: 15px; margin: 20px 0;">
+                  <strong>⏰ Note:</strong> After 90 days, the account and data will be <strong>permanently deleted</strong> and cannot be recovered.
+                </p>
+
+                <p>If you have any questions or would like to restore your account, please contact our support team.</p>
                 <p>Best regards,<br><strong>ChildGrowth Insights Team</strong></p>
               </td>
             </tr>
@@ -800,6 +816,77 @@ ChildGrowth Insights Team
 """
     mail.send(msg)
 
+def send_account_restored_email(to_email, user_name):
+    """Send notification email when an account has been restored by admin"""
+    login_url = url_for("login", _external=True)
+    msg = Message(
+        "ChildGrowth Insights - Your Account Has Been Restored",
+        recipients=[to_email]
+    )
+
+    msg.body = f"""
+
+Hello {user_name},
+Good news! Your ChildGrowth Insights account has been restored by an administrator.
+Your account is now active again and you can log in at any time:
+{login_url}
+
+All your data, including children's profiles, assessments, and progress records, has been preserved and is available for you to access.
+
+To keep your account active in the future, please remember to log in at least once every 30 days.
+
+If you have any questions, please contact our support team.
+Welcome back!
+Best regards,
+ChildGrowth Insights Team
+"""
+    msg.html = f"""
+
+<html>
+  <body style="font-family: Arial, sans-serif; background-color: #f4f6f8; margin: 0; padding: 0;">
+    <table width="100%" cellpadding="0" cellspacing="0">
+      <tr>
+        <td align="center" style="padding: 30px 0;">
+          <table width="600" cellpadding="0" cellspacing="0" style="background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+            <tr>
+              <td style="background: #28a745; padding: 20px; text-align: center; color: #ffffff; font-size: 22px; font-weight: bold;">
+                ✅ Account Restored
+              </td>
+            </tr>
+            <tr>
+              <td style="padding: 30px; color: #333333; font-size: 16px;">
+                <p>Hello <strong>{user_name}</strong>,</p>
+                <p><strong style="color: #28a745; font-size: 18px;">Good news! Your account has been restored.</strong></p>
+                <p style="background: #d4edda; border-left: 4px solid #28a745; padding: 15px; margin: 20px 0;">
+                  Your <strong>ChildGrowth Insights</strong> account has been restored by an administrator and is now active again.
+                </p>
+                <p>All your data, including children's profiles, assessments, and progress records, has been preserved and is available for you to access.</p>
+                <p style="text-align: center; margin: 30px 0;">
+                  <a href="{login_url}" style="background: #28a745; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
+                    Log In Now
+                  </a>
+                </p>
+                <p style="background: #fff3cd; padding: 15px; border-radius: 6px;">
+                  💡 <strong>Reminder:</strong> To keep your account active in the future, please log in at least once every 30 days.
+                </p>
+                <p>If you have any questions, please contact our support team.</p>
+                <p><strong>Welcome back!</strong></p>
+                <p>Best regards,<br><strong>ChildGrowth Insights Team</strong></p>
+              </td>
+            </tr>
+            <tr>
+              <td style="background: #f4f6f8; text-align: center; padding: 15px; font-size: 12px; color: #888888;">
+                &copy; 2025 ChildGrowth Insights. All rights reserved.
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
+"""
+    mail.send(msg)
 
 def check_inactive_users():
     """
@@ -993,6 +1080,7 @@ def permanently_delete_old_accounts():
         conn.close()
 
     return stats
+
 
 
 # -------------------------------------------------
@@ -3435,7 +3523,12 @@ def admin_restore_user(user_id):
     cursor.close()
     conn.close()
 
-    flash(f"User {user['name']} ({user['email']}) has been successfully restored!", "success")
+    # Send restoration notification email to the user
+    try:
+        send_account_restored_email(user['email'], user['name'])
+        flash(f"User {user['name']} ({user['email']}) has been successfully restored! Notification email sent.", "success")
+    except Exception as e:
+        flash(f"User {user['name']} ({user['email']}) has been restored, but email notification failed: {str(e)}", "warning")
     return redirect(url_for("admin_deleted_users"))
 
 

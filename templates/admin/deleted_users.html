@@ -6,8 +6,8 @@
 <div class="container-fluid mt-4">
     <div class="row mb-4">
         <div class="col-md-12">
-            <h2>🗑️ Deleted User Accounts</h2>
-            <p class="text-muted">View and restore soft-deleted accounts. Accounts are permanently deleted after 90 days.</p>
+            <h2>Deleted User Accounts</h2>
+            <p class="text-muted">View and restore deleted accounts. Accounts are permanently deleted after 90 days.</p>
             <a href="{{ url_for('admin_inactive_users') }}" class="btn btn-secondary mb-3">
                 ← Back to Inactive Users
             </a>
@@ -107,46 +107,10 @@
     <div class="row">
         <div class="col-md-12">
             <div class="alert alert-info">
-                <h5>✅ No Deleted Accounts</h5>
-                <p class="mb-0">There are currently no soft-deleted user accounts.</p>
+                <h5>No Deleted Accounts</h5>
+                <p class="mb-0">There are currently no deleted user accounts.</p>
             </div>
         </div>
     </div>
     {% endif %}
-
-    <!-- Information Panel -->
-    <div class="row mt-4">
-        <div class="col-md-12">
-            <div class="card border-info">
-                <div class="card-header bg-info text-white">
-                    <h5 class="mb-0">ℹ️ About Soft Delete & Recovery</h5>
-                </div>
-                <div class="card-body">
-                    <h6>How Soft Delete Works:</h6>
-                    <ul>
-                        <li><strong>Soft Deletion:</strong> When accounts are deleted due to inactivity, they are marked as deleted but not permanently removed from the database.</li>
-                        <li><strong>90-Day Grace Period:</strong> Deleted accounts remain recoverable for 90 days, allowing users or admins to restore them if needed.</li>
-                        <li><strong>Automatic Permanent Deletion:</strong> After 90 days, accounts are permanently deleted and cannot be recovered.</li>
-                        <li><strong>Data Preservation:</strong> While soft-deleted, all user data (children, assessments) is preserved but inaccessible.</li>
-                    </ul>
-
-                    <h6>Restoring an Account:</h6>
-                    <ul>
-                        <li>Click the "Restore" button next to any deleted account.</li>
-                        <li>The account will be reactivated with <code>is_active = 1</code></li>
-                        <li>The <code>last_login</code> timestamp is set to now, giving them another 30-day period.</li>
-                        <li>All warning flags are cleared.</li>
-                        <li>The user can immediately log in again.</li>
-                    </ul>
-
-                    <h6>Warning Signs:</h6>
-                    <ul>
-                        <li>⚠️ Accounts with 7 days or fewer until permanent deletion are highlighted in yellow.</li>
-                        <li>Accounts overdue for permanent deletion (90+ days) will be removed in the next cleanup cycle.</li>
-                    </ul>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
 {% endblock %}

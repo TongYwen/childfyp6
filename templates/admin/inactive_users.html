@@ -3,7 +3,7 @@
 {% block content %}
 <div class="container mt-4">
     <h2>Inactive Parent User Management</h2>
-    <p class="text-muted">Monitor and manage parent account activity and automatic deletion. <strong>Admin accounts are excluded from automatic deletion.</strong></p>
+    <p class="text-muted">Monitor and manage parent account activity and automatic deletion.</p>
 
     <!-- Action Buttons -->
     <div class="mb-3">
@@ -13,7 +13,7 @@
             </button>
         </form>
         <a href="{{ url_for('admin_deleted_users') }}" class="btn btn-secondary ms-2">
-            🗑️ View Deleted Accounts
+            View Deleted Accounts
         </a>
         <small class="text-muted ms-2 d-block mt-2">Manually trigger cleanup or view/restore deleted accounts</small>
     </div>
@@ -258,16 +258,15 @@
 
     <!-- Information Box -->
     <div class="alert alert-info">
-        <h5>How it works:</h5>
+        <h5>Notes for Admin</h5>
         <ul>
-            <li><strong>Parent accounts only:</strong> Only parent user accounts are subject to automatic deletion. Admin accounts are completely excluded.</li>
             <li><strong>23 days:</strong> Parent users receive first warning email (7 days before deletion)</li>
             <li><strong>28 days:</strong> Parent users receive final warning email (2 days before deletion)</li>
             <li><strong>30 days:</strong> Parent accounts are automatically deleted (unless protected)</li>
             <li><strong>Protected:</strong> Users marked as protected will never be automatically deleted</li>
             <li><strong>Reactivate:</strong> Manually reset a user's last_login to today's date</li>
         </ul>
-        <p class="mb-0"><strong>Note:</strong> The cleanup process runs automatically daily via Flask-APScheduler. You can also trigger it manually using the "Run Cleanup Now" button above.</p>
+        <p class="mb-0"><strong>Note:</strong> The cleanup process runs automatically daily. Admin can trigger it manually using the "Run Cleanup Now" button above.</p>
     </div>
 </div>
 {% endblock %}
