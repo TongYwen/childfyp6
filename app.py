@@ -750,13 +750,20 @@ def send_deletion_confirmation_email(to_email, user_name):
     msg.body = f"""
 Hello {user_name},
 
-Your ChildGrowth Insights account has been permanently deleted due to 30 days of inactivity.
+Your ChildGrowth Insights account has been deactivated due to 30 days of inactivity.
 
-All your data, including children's profiles, assessments, and progress records, has been removed from our system.
+IMPORTANT: Your account can still be restored within the next 90 days!
 
-If you believe this was done in error or would like to create a new account, please contact our support team.
+Your data, including children's profiles, assessments, and progress records, has been preserved and can be recovered if you contact our support team to restore your account.
 
-Thank you for using ChildGrowth Insights.
+To restore your account:
+- Contact our support team or administrator
+- Request account restoration
+- Your account and all data will be fully restored
+
+After 90 days, the account and data will be permanently deleted and cannot be recovered.
+
+If you have any questions or would like to restore your account, please contact our support team.
 
 Best regards,
 ChildGrowth Insights Team
@@ -777,12 +784,21 @@ ChildGrowth Insights Team
             <tr>
               <td style="padding: 30px; color: #333333; font-size: 16px;">
                 <p>Hello <strong>{user_name}</strong>,</p>
-                <p>Your <strong>ChildGrowth Insights</strong> account has been permanently deleted due to 30 days of inactivity.</p>
-                <p style="background: #e2e3e5; border-left: 4px solid #6c757d; padding: 15px; margin: 20px 0;">
-                  All your data, including children's profiles, assessments, and progress records, has been removed from our system.
+                <p>Your <strong>ChildGrowth Insights</strong> account has been deactivated due to 30 days of inactivity.</p>
+                <p style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0;">
+                  <strong>⚠️ IMPORTANT:</strong> Your account can still be <strong>restored within the next 90 days!</strong>
                 </p>
-                <p>If you believe this was done in error or would like to create a new account, please contact our support team.</p>
-                <p>Thank you for using ChildGrowth Insights.</p>
+                <p>Your data, including children's profiles, assessments, and progress records, has been <strong>preserved</strong> and can be recovered if you contact our support team to restore your account.</p>
+                <p style="background: #d1ecf1; border-left: 4px solid #0dcaf0; padding: 15px; margin: 20px 0;">
+                  <strong>To restore your account:</strong><br>
+                  • Contact our support team or administrator<br>
+                  • Request account restoration<br>
+                  • Your account and all data will be fully restored
+                </p>
+                <p style="background: #f8d7da; border-left: 4px solid #dc3545; padding: 15px; margin: 20px 0;">
+                  <strong>⏰ Note:</strong> After 90 days, the account and data will be <strong>permanently deleted</strong> and cannot be recovered.
+                </p>
+                <p>If you have any questions or would like to restore your account, please contact our support team.</p>
                 <p>Best regards,<br><strong>ChildGrowth Insights Team</strong></p>
               </td>
             </tr>
