@@ -2449,17 +2449,21 @@ def tutoring_recommendations():
             - Age: {child['age']} years old
             - Grade Level: {child['grade_level'] or 'Not specified'}
 
+            BACKGROUND DATA (for your analysis only - DO NOT repeat these in your output):
             --- Preschool Development Summary ---
             {preschool_result if preschool_result else "No preschool data available."}
 
             --- Learning Style Analysis ---
             {learning_result if learning_result else "No learning style data available."}
 
-            Based on the above, provide:
+            IMPORTANT: Use the above data to inform your recommendations, but DO NOT include or repeat
+            the Preschool Development Summary or Learning Style Analysis in your output.
 
-            1. **Potential Weak Areas**: Identify skills that need support
-            2. **Recommended Focus Areas**: Subjects or domains for tutoring
-            3. **Personalized Activities**: Activities aligned with learning style
+            Based on your analysis of the child's profile and background data, provide ONLY these 4 sections:
+
+            1. **Potential Weak Areas**: Identify specific skills that need support
+            2. **Recommended Focus Areas**: Subjects or domains where tutoring would be most beneficial
+            3. **Personalized Activities**: Specific activities aligned with the child's learning style
 
             4. **RECOMMENDED LEARNING MATERIALS** (IMPORTANT):
                Recommend 3-5 SPECIFIC products (books, learning tools, stationery, toys, workbooks, flashcards, or games) that parents can purchase to support this child's learning.
@@ -2478,12 +2482,39 @@ def tutoring_recommendations():
                Priority: [high|medium|low]
                [PRODUCT_END]
 
-            Output in clean HTML format:
-            - Use <h3> for section headers
-            - Use <ul><li> for lists
-            - Include ALL product recommendations using the [PRODUCT_START]...[PRODUCT_END] format shown above
-            - End with a summary paragraph
-            - Avoid disclaimers
+            OUTPUT FORMAT (HTML):
+
+            <h3>1. Potential Weak Areas</h3>
+            <ul>
+              <li>Specific skill or area that needs support</li>
+              <li>Another weak area with brief explanation</li>
+            </ul>
+
+            <h3>2. Recommended Focus Areas</h3>
+            <ul>
+              <li>Subject or domain for tutoring</li>
+              <li>Another recommended focus area</li>
+            </ul>
+
+            <h3>3. Personalized Activities</h3>
+            <ul>
+              <li>Activity aligned with learning style</li>
+              <li>Another recommended activity</li>
+            </ul>
+
+            <h3>4. Recommended Learning Materials</h3>
+            <p>Here are specific products to support {child['name']}'s learning:</p>
+
+            [Include ALL product recommendations using the [PRODUCT_START]...[PRODUCT_END] format]
+
+            <p><strong>Parent Action Plan:</strong> [2-3 sentence summary of what parents should focus on first]</p>
+
+            IMPORTANT:
+            - DO NOT include Preschool Development Summary
+            - DO NOT include Learning Style Analysis
+            - Only output the 4 sections listed above
+            - Be specific and actionable
+            - Avoid generic disclaimers
             """
 
             model = genai.GenerativeModel("gemini-2.5-flash")
