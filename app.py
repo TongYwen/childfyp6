@@ -76,6 +76,125 @@ def get_db_conn():
 
 
 # -------------------------------------------------
+# Product Recommendation Helpers
+# -------------------------------------------------
+def generate_product_links(keywords, product_type):
+    """
+    Generate search URLs for multiple e-commerce platforms based on keywords.
+    """
+    import urllib.parse
+
+    search_query = urllib.parse.quote_plus(keywords)
+
+    links = {
+        'amazon': f"https://www.amazon.com/s?k={search_query}",
+        'shopee': f"https://shopee.com.my/search?keyword={search_query}",
+        'lazada': f"https://www.lazada.com.my/catalog/?q={search_query}",
+        'popular': f"https://www.popular.com.my/search?q={search_query}"
+    }
+
+    return links
+
+
+def extract_products_from_response(full_response, child_id, cursor):
+    """
+    Extract product recommendations from AI response and store in database.
+    Returns cleaned HTML (without product tags) and list of product dictionaries.
+    """
+    import re
+
+    # Pattern to match product blocks
+    product_pattern = r'\[PRODUCT_START\](.*?)\[PRODUCT_END\]'
+    product_matches = re.findall(product_pattern, full_response, re.DOTALL)
+
+    products = []
+    tutoring_result_id = None
+
+    for product_text in product_matches:
+        # Parse product fields
+        product_data = {}
+
+        # Extract Name
+        name_match = re.search(r'Name:\s*(.+?)(?:\n|$)', product_text)
+        if name_match:
+            product_data['name'] = name_match.group(1).strip()
+
+        # Extract Type
+        type_match = re.search(r'Type:\s*(.+?)(?:\n|$)', product_text)
+        if type_match:
+            product_data['type'] = type_match.group(1).strip().lower()
+
+        # Extract Age
+        age_match = re.search(r'Age:\s*(.+?)(?:\n|$)', product_text)
+        if age_match:
+            product_data['age_range'] = age_match.group(1).strip()
+
+        # Extract Price
+        price_match = re.search(r'Price:\s*RM\s*([\d.]+)', product_text)
+        if price_match:
+            product_data['price'] = float(price_match.group(1))
+
+        # Extract Why (description)
+        why_match = re.search(r'Why:\s*(.+?)(?:\nKeywords:|$)', product_text, re.DOTALL)
+        if why_match:
+            product_data['why'] = why_match.group(1).strip()
+
+        # Extract Keywords
+        keywords_match = re.search(r'Keywords:\s*(.+?)(?:\nPriority:|$)', product_text, re.DOTALL)
+        if keywords_match:
+            product_data['keywords'] = keywords_match.group(1).strip()
+
+        # Extract Priority
+        priority_match = re.search(r'Priority:\s*(.+?)(?:\n|$)', product_text)
+        if priority_match:
+            product_data['priority'] = priority_match.group(1).strip().lower()
+
+        # Only add if we have minimum required fields
+        if 'name' in product_data and 'keywords' in product_data:
+            products.append(product_data)
+
+    # Remove product tags from HTML response
+    cleaned_html = re.sub(product_pattern, '', full_response, flags=re.DOTALL)
+
+    # Store products in database if any were found
+    if products and cursor:
+        for prod in products:
+            # Generate product links
+            links = generate_product_links(
+                prod.get('keywords', prod['name']),
+                prod.get('type', 'book')
+            )
+
+            try:
+                cursor.execute("""
+                    INSERT INTO product_recommendations
+                    (child_id, tutoring_result_id, product_name, product_type,
+                     description, age_range, price_myr, amazon_url, shopee_url,
+                     lazada_url, popular_url, priority, reason, created_at, updated_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
+                """, (
+                    child_id,
+                    tutoring_result_id,
+                    prod['name'],
+                    prod.get('type', 'book'),
+                    prod.get('keywords', ''),
+                    prod.get('age_range', ''),
+                    prod.get('price', 0.0),
+                    links['amazon'],
+                    links['shopee'],
+                    links['lazada'],
+                    links['popular'],
+                    prod.get('priority', 'medium'),
+                    prod.get('why', '')
+                ))
+            except Exception as e:
+                # Log error but continue processing
+                print(f"Error storing product: {e}")
+
+    return cleaned_html.strip(), products
+
+
+# -------------------------------------------------
 # User model for Flask-Login
 # -------------------------------------------------
 class User(UserMixin):
@@ -2294,9 +2413,12 @@ def tutoring_recommendations():
     elif regen == "1" or not use_cached:
         try:
             prompt = f"""
-            You are an expert child education advisor.
+            You are an expert child education advisor specializing in personalized learning recommendations.
 
-            You will analyze a preschool child's development and learning style to recommend tutoring or support areas.
+            CHILD PROFILE:
+            - Name: {child['name']}
+            - Age: {child['age']} years old
+            - Grade Level: {child['grade_level'] or 'Not specified'}
 
             --- Preschool Development Summary ---
             {preschool_result if preschool_result else "No preschool data available."}
@@ -2304,20 +2426,40 @@ def tutoring_recommendations():
             --- Learning Style Analysis ---
             {learning_result if learning_result else "No learning style data available."}
 
-            Based on the above, identify:
-            1. The child’s potential weak areas or skills that may need support.
-            2. Subjects or developmental domains where tutoring or extra help would be most beneficial.
-            3. Personalized activity or tutoring style recommendations aligned with the learning style.
+            Based on the above, provide:
 
-            Output clear, structured suggestions in HTML format:
-            - Use <ul><li> for lists.
-            - End with a short summary paragraph for parents.
-            - Avoid self-reference or disclaimers.
+            1. **Potential Weak Areas**: Identify skills that need support
+            2. **Recommended Focus Areas**: Subjects or domains for tutoring
+            3. **Personalized Activities**: Activities aligned with learning style
+
+            4. **RECOMMENDED LEARNING MATERIALS** (IMPORTANT):
+               Recommend 3-5 SPECIFIC products (books, learning tools, stationery, toys, workbooks, flashcards, or games) that parents can purchase to support this child's learning.
+
+               Format each product like this (use this EXACT format):
+               [PRODUCT_START]
+               Name: [Exact product name]
+               Type: [book|learning_tool|stationery|toy|workbook|flashcard|game]
+               Age: [e.g., 3-5 years]
+               Price: RM [estimated price, e.g., 25.90]
+               Why: [1-2 sentences explaining why this helps the child]
+               Keywords: [keywords for searching online, e.g., "phonics workbook kids age 5"]
+               Priority: [high|medium|low]
+               [PRODUCT_END]
+
+            Output in clean HTML format:
+            - Use <h3> for section headers
+            - Use <ul><li> for lists
+            - Include ALL product recommendations using the [PRODUCT_START]...[PRODUCT_END] format shown above
+            - End with a summary paragraph
+            - Avoid disclaimers
             """
 
             model = genai.GenerativeModel("gemini-2.5-flash")
             response = model.generate_content(prompt)
-            tutoring_summary = response.text.strip()
+            full_response = response.text.strip()
+
+            # Extract product recommendations
+            tutoring_summary, products = extract_products_from_response(full_response, child_id, cursor)
 
             if cached:
                 cursor.execute(
@@ -2349,6 +2491,21 @@ def tutoring_recommendations():
                 f"<p class='text-danger'>(Error generating recommendations: {e})</p>"
             )
 
+    # Fetch product recommendations for this child
+    cursor.execute("""
+        SELECT * FROM product_recommendations
+        WHERE child_id = %s
+        ORDER BY
+            CASE priority
+                WHEN 'high' THEN 1
+                WHEN 'medium' THEN 2
+                WHEN 'low' THEN 3
+            END,
+            created_at DESC
+        LIMIT 10
+    """, (child_id,))
+    products = cursor.fetchall()
+
     cursor.close()
     conn.close()
 
@@ -2362,6 +2519,7 @@ def tutoring_recommendations():
                 if last_generated
                 else None,
                 "use_cached": use_cached,
+                "products": products
             }
         )
 
@@ -2372,8 +2530,41 @@ def tutoring_recommendations():
         tutoring_summary=tutoring_summary,
         last_generated=last_generated,
         use_cached=use_cached,
+        products=products,
         active="tutoring",
     )
+
+
+# --- PRODUCT CLICK TRACKING API ---
+@app.route("/api/track-product-click", methods=["POST"])
+@login_required
+def track_product_click():
+    """Track when a user clicks on a product purchase link"""
+    try:
+        data = request.get_json()
+        product_id = data.get("product_id")
+        retailer = data.get("retailer")
+
+        if not product_id or not retailer:
+            return jsonify({"error": "Missing product_id or retailer"}), 400
+
+        conn = get_db_conn()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            INSERT INTO product_clicks
+            (product_recommendation_id, parent_id, retailer, clicked_at)
+            VALUES (%s, %s, %s, NOW())
+        """, (product_id, current_user.id, retailer))
+
+        conn.commit()
+        cursor.close()
+        conn.close()
+
+        return jsonify({"success": True}), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 # --- AI INSIGHTS ---
