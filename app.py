@@ -470,12 +470,19 @@ def login():
         conn = get_db_conn()
         cursor = conn.cursor(dictionary=True)
         cursor.execute(
-            "SELECT id, name, email, password, role, is_active FROM users WHERE email = %s",
+            "SELECT id, name, email, password, role, is_active, deleted_at FROM users WHERE email = %s",
             (email,),
         )
         user = cursor.fetchone()
 
         if user and bcrypt.check_password_hash(user["password"], password):
+            # Check if account has been deleted
+            if user.get("deleted_at"):
+                flash("Your account has been deleted. Please contact an administrator to restore it.", "danger")
+                cursor.close()
+                conn.close()
+                return redirect(url_for("login"))
+
             # Check if account is active
             if not user.get("is_active", 1):
                 flash("Your account has been deactivated. Please contact an administrator.", "danger")
@@ -830,6 +837,7 @@ def check_inactive_users():
             WHERE role = 'parent'
             AND is_active = 1
             AND protected_from_deletion = 0
+            AND deleted_at IS NULL
             AND last_login IS NOT NULL
             AND last_login <= %s
             AND inactive_warning_sent IS NULL
@@ -855,6 +863,7 @@ def check_inactive_users():
             WHERE role = 'parent'
             AND is_active = 1
             AND protected_from_deletion = 0
+            AND deleted_at IS NULL
             AND last_login IS NOT NULL
             AND last_login <= %s
             AND inactive_warning_sent IS NOT NULL
@@ -868,13 +877,14 @@ def check_inactive_users():
             except Exception as e:
                 stats['errors'].append(f"Error sending final warning to {user['email']}: {str(e)}")
 
-        # 3. Find and delete PARENT users inactive for 30+ days (not protected)
+        # 3. Find and soft-delete PARENT users inactive for 30+ days (not protected)
         cursor.execute("""
             SELECT id, name, email, last_login
             FROM users
             WHERE role = 'parent'
             AND is_active = 1
             AND protected_from_deletion = 0
+            AND deleted_at IS NULL
             AND last_login IS NOT NULL
             AND last_login <= %s
         """, (deletion_threshold,))
@@ -882,15 +892,21 @@ def check_inactive_users():
         users_for_deletion = cursor.fetchall()
         for user in users_for_deletion:
             try:
-                # Send deletion confirmation email before deleting
+                # Send deletion confirmation email before soft-deleting
                 send_deletion_confirmation_email(user['email'], user['name'])
 
-                # Delete user (cascade will handle related data)
-                cursor.execute("DELETE FROM users WHERE id = %s", (user['id'],))
+                # Soft delete user (mark as deleted instead of actually deleting)
+                cursor.execute("""
+                    UPDATE users
+                    SET deleted_at = %s,
+                        deletion_reason = 'Inactive for 30+ days',
+                        is_active = 0
+                    WHERE id = %s
+                """, (now, user['id']))
                 conn.commit()
                 stats['accounts_deleted'] += 1
             except Exception as e:
-                stats['errors'].append(f"Error deleting user {user['email']}: {str(e)}")
+                stats['errors'].append(f"Error soft-deleting user {user['email']}: {str(e)}")
                 conn.rollback()
 
         # 4. Also check for PARENT users who have never logged in and were created 30+ days ago
@@ -900,6 +916,7 @@ def check_inactive_users():
             WHERE role = 'parent'
             AND is_active = 1
             AND protected_from_deletion = 0
+            AND deleted_at IS NULL
             AND last_login IS NULL
             AND created_at <= %s
         """, (deletion_threshold,))
@@ -908,11 +925,67 @@ def check_inactive_users():
         for user in never_logged_in_users:
             try:
                 send_deletion_confirmation_email(user['email'], user['name'])
-                cursor.execute("DELETE FROM users WHERE id = %s", (user['id'],))
+                # Soft delete user who never logged in
+                cursor.execute("""
+                    UPDATE users
+                    SET deleted_at = %s,
+                        deletion_reason = 'Never logged in - account created 30+ days ago',
+                        is_active = 0
+                    WHERE id = %s
+                """, (now, user['id']))
                 conn.commit()
                 stats['accounts_deleted'] += 1
             except Exception as e:
-                stats['errors'].append(f"Error deleting never-logged-in user {user['email']}: {str(e)}")
+                stats['errors'].append(f"Error soft-deleting never-logged-in user {user['email']}: {str(e)}")
+                conn.rollback()
+
+    finally:
+        cursor.close()
+        conn.close()
+
+    return stats
+
+
+def permanently_delete_old_accounts():
+    """
+    Permanently delete soft-deleted accounts after 90 days.
+    This provides a grace period for account recovery before permanent deletion.
+
+    Returns statistics about the operation.
+    """
+    from datetime import datetime, timedelta
+
+    conn = get_db_conn()
+    cursor = conn.cursor(dictionary=True)
+
+    now = datetime.now()
+    permanent_deletion_threshold = now - timedelta(days=90)
+
+    stats = {
+        'permanently_deleted': 0,
+        'errors': []
+    }
+
+    try:
+        # Find soft-deleted accounts older than 90 days
+        cursor.execute("""
+            SELECT id, name, email, deleted_at, deletion_reason
+            FROM users
+            WHERE deleted_at IS NOT NULL
+            AND deleted_at <= %s
+        """, (permanent_deletion_threshold,))
+
+        old_deleted_accounts = cursor.fetchall()
+
+        for user in old_deleted_accounts:
+            try:
+                # Permanently delete the user (cascade will handle related data)
+                cursor.execute("DELETE FROM users WHERE id = %s", (user['id'],))
+                conn.commit()
+                stats['permanently_deleted'] += 1
+                app.logger.info(f"Permanently deleted account: {user['email']} (soft-deleted on {user['deleted_at']})")
+            except Exception as e:
+                stats['errors'].append(f"Error permanently deleting user {user['email']}: {str(e)}")
                 conn.rollback()
 
     finally:
@@ -937,6 +1010,22 @@ def scheduled_cleanup_inactive_users():
             app.logger.info(f"Scheduled cleanup completed: {stats}")
         except Exception as e:
             app.logger.error(f"Scheduled cleanup failed: {e}")
+            import traceback
+            traceback.print_exc()
+
+
+@scheduler.task('cron', id='permanent_deletion', hour=3, minute=0)
+def scheduled_permanent_deletion():
+    """
+    Scheduled task to permanently delete soft-deleted accounts after 90 days.
+    Runs daily at 3:00 AM UTC (1 hour after soft delete cleanup).
+    """
+    with app.app_context():
+        try:
+            stats = permanently_delete_old_accounts()
+            app.logger.info(f"Permanent deletion completed: {stats}")
+        except Exception as e:
+            app.logger.error(f"Permanent deletion failed: {e}")
             import traceback
             traceback.print_exc()
 
@@ -3147,7 +3236,7 @@ def admin_inactive_users():
     final_warning_threshold = now - timedelta(days=28)
     deletion_threshold = now - timedelta(days=30)
 
-    # Get all PARENT users with their activity status (admins excluded)
+    # Get all PARENT users with their activity status (admins excluded, non-deleted only)
     cursor.execute("""
         SELECT
             id,
@@ -3165,6 +3254,7 @@ def admin_inactive_users():
             END as days_inactive
         FROM users
         WHERE role = 'parent'
+        AND deleted_at IS NULL
         ORDER BY
             CASE WHEN last_login IS NULL THEN created_at ELSE last_login END ASC
     """, (now, now))
@@ -3264,6 +3354,89 @@ def admin_activate_user(user_id):
 
     flash(f"User {user['name']} has been reactivated.", "success")
     return redirect(url_for("admin_inactive_users"))
+
+
+@app.route("/admin/deleted-users")
+@login_required
+@roles_required("admin")
+def admin_deleted_users():
+    """Admin page to view soft-deleted users and restore them"""
+    from datetime import datetime, timedelta
+
+    conn = get_db_conn()
+    cursor = conn.cursor(dictionary=True)
+
+    now = datetime.now()
+    permanent_deletion_date = now - timedelta(days=90)
+
+    # Get all soft-deleted users with time until permanent deletion
+    cursor.execute("""
+        SELECT
+            id,
+            name,
+            email,
+            role,
+            deleted_at,
+            deletion_reason,
+            DATEDIFF(%s, deleted_at) as days_deleted,
+            DATEDIFF(DATE_ADD(deleted_at, INTERVAL 90 DAY), %s) as days_until_permanent
+        FROM users
+        WHERE deleted_at IS NOT NULL
+        ORDER BY deleted_at DESC
+    """, (now, now))
+
+    deleted_users = cursor.fetchall()
+
+    cursor.close()
+    conn.close()
+
+    return render_template(
+        "admin/deleted_users.html",
+        deleted_users=deleted_users,
+        now=now,
+        permanent_deletion_threshold=90
+    )
+
+
+@app.route("/admin/users/<int:user_id>/restore", methods=["POST"])
+@login_required
+@roles_required("admin")
+def admin_restore_user(user_id):
+    """Restore a soft-deleted user account"""
+    from datetime import datetime
+
+    conn = get_db_conn()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute(
+        "SELECT name, email, deleted_at FROM users WHERE id = %s AND deleted_at IS NOT NULL",
+        (user_id,)
+    )
+    user = cursor.fetchone()
+
+    if not user:
+        flash("Deleted user not found or already restored.", "danger")
+        cursor.close()
+        conn.close()
+        return redirect(url_for("admin_deleted_users"))
+
+    # Restore the user by clearing soft delete fields and reactivating
+    cursor.execute("""
+        UPDATE users
+        SET deleted_at = NULL,
+            deletion_reason = NULL,
+            is_active = 1,
+            last_login = %s,
+            inactive_warning_sent = NULL
+        WHERE id = %s
+    """, (datetime.now(), user_id))
+
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+    flash(f"User {user['name']} ({user['email']}) has been successfully restored!", "success")
+    return redirect(url_for("admin_deleted_users"))
 
 
 @app.route("/admin/run-cleanup", methods=["POST"])

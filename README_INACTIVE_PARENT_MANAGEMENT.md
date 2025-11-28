@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Inactive Parent User Management System is an automated feature that identifies, warns, and removes parent accounts that have been inactive for 30 days. This system helps maintain database efficiency, improves security by removing dormant accounts, and encourages user engagement through proactive communication.
+The Inactive Parent User Management System is an automated feature that identifies, warns, and soft-deletes parent accounts that have been inactive for 30 days. **Soft deletion** means accounts are marked as deleted but remain recoverable for 90 days before permanent deletion. This system helps maintain database efficiency, improves security by removing dormant accounts, and encourages user engagement through proactive communication.
 
 **Key Benefits:**
 - 📊 Automated database cleanup without manual intervention
@@ -10,6 +10,8 @@ The Inactive Parent User Management System is an automated feature that identifi
 - 📧 Fair warning system with multiple notifications
 - ⚙️ Fully automated with manual override capabilities
 - 🛡️ Multiple safety mechanisms to prevent accidental deletions
+- ♻️ **Soft delete with 90-day grace period for account recovery**
+- 🔄 **One-click account restoration** from admin dashboard
 
 ---
 
@@ -30,11 +32,11 @@ The Inactive Parent User Management System is an automated feature that identifi
 
 ## How It Works
 
-The system operates on a **4-phase timeline**:
+The system operates on a **5-phase timeline with soft delete and recovery period**:
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                    INACTIVE ACCOUNT LIFECYCLE                    │
+│              INACTIVE ACCOUNT LIFECYCLE (With Soft Delete)       │
 └─────────────────────────────────────────────────────────────────┘
 
 Day 0-22:  ✅ ACTIVE
@@ -51,15 +53,28 @@ Day 28:    🚨 FINAL WARNING
            └─ Emphasizes data loss and consequences
            └─ Last chance for user to reactivate
 
-Day 30:    ❌ ACCOUNT DELETED
+Day 30:    ⚠️  SOFT DELETE (Account Marked as Deleted)
            └─ Deletion confirmation email sent
-           └─ Account and all related data removed
-           └─ Permanent and irreversible
+           └─ Account marked with `deleted_at` timestamp
+           └─ Account hidden from normal views
+           └─ **User cannot log in**
+           └─ **Data preserved for 90 days**
+
+Day 30-120: ♻️ RECOVERY PERIOD (90-Day Grace Period)
+           └─ Account can be restored by admin
+           └─ All data remains intact
+           └─ One-click restoration available
+           └─ User will be warned 7 days before permanent deletion
+
+Day 120:   🗑️ PERMANENT DELETION
+           └─ Account and all data permanently removed
+           └─ **Cannot be recovered**
+           └─ Cascade delete removes children, assessments, etc.
 ```
 
 ### Special Case: Never Logged In
 
-Accounts created 30+ days ago that have **never been used** are also deleted automatically. This prevents test accounts and abandoned registrations from cluttering the database.
+Accounts created 30+ days ago that have **never been used** are also soft-deleted automatically. This prevents test accounts and abandoned registrations from cluttering the database. These accounts also have a 90-day grace period before permanent deletion.
 
 ---
 
@@ -69,10 +84,12 @@ Accounts created 30+ days ago that have **never been used** are also deleted aut
 - **Daily Automated Checks**: Runs automatically at 2:00 AM UTC every day
 - **Smart Detection**: Identifies inactive users based on last login timestamp
 - **Progressive Warnings**: Two-stage warning system (Day 23 and Day 28)
-- **Automatic Deletion**: Removes accounts at Day 30 with confirmation
+- **Soft Delete at Day 30**: Marks accounts as deleted while preserving data
+- **Automatic Permanent Deletion**: Removes soft-deleted accounts after 90 days (Day 120)
 
 ### 2. Admin Control Panel
-Located at `/admin/inactive-users` (admin access required)
+
+**Inactive Users Dashboard** at `/admin/inactive-users` (admin access required)
 
 **Dashboard Features:**
 - **Summary Cards**: 4 color-coded cards showing account status
@@ -91,6 +108,16 @@ Located at `/admin/inactive-users` (admin access required)
   - **Protect/Unprotect**: Manually exempt accounts from deletion
   - **Reactivate**: Reset inactivity timer to current date
   - **Run Cleanup Now**: Trigger cleanup process manually
+  - **View Deleted Accounts**: Link to deleted users dashboard
+
+**Deleted Users Dashboard** at `/admin/deleted-users` (admin access required)
+
+**Dashboard Features:**
+- View all soft-deleted accounts
+- See deletion date and reason
+- Track days until permanent deletion
+- Warning indicators for accounts expiring soon (≤7 days)
+- **One-Click Restore**: Restore any deleted account instantly
 
 ### 3. Email Notification System
 
@@ -111,7 +138,8 @@ Three professionally designed HTML emails:
 **Deletion Confirmation Email (Day 30)**
 - Subject: "Your Account Has Been Deleted"
 - Gray theme for closure
-- Confirms permanent deletion
+- Confirms soft deletion with recovery option
+- Informs user to contact admin for restoration
 - Provides contact information for questions
 
 ### 4. User Dashboard Warnings
