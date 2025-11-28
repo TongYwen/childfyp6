@@ -124,6 +124,21 @@ def extract_products_from_response(full_response, child_id, cursor):
         if type_match:
             product_data['type'] = type_match.group(1).strip().lower()
 
+        # Extract Category
+        category_match = re.search(r'Category:\s*(.+?)(?:\n|$)', product_text)
+        if category_match:
+            product_data['category'] = category_match.group(1).strip().lower()
+
+        # Extract Subject
+        subject_match = re.search(r'Subject:\s*(.+?)(?:\n|$)', product_text)
+        if subject_match:
+            product_data['subject'] = subject_match.group(1).strip().lower()
+
+        # Extract Learning Style
+        learning_style_match = re.search(r'Learning Style:\s*(.+?)(?:\n|$)', product_text)
+        if learning_style_match:
+            product_data['learning_style'] = learning_style_match.group(1).strip().lower()
+
         # Extract Age
         age_match = re.search(r'Age:\s*(.+?)(?:\n|$)', product_text)
         if age_match:
@@ -165,21 +180,35 @@ def extract_products_from_response(full_response, child_id, cursor):
                 prod.get('type', 'book')
             )
 
+            # Calculate price range
+            price = prod.get('price', 0.0)
+            if price <= 20:
+                price_range = 'budget'
+            elif price <= 50:
+                price_range = 'mid_range'
+            else:
+                price_range = 'premium'
+
             try:
                 cursor.execute("""
                     INSERT INTO product_recommendations
-                    (child_id, tutoring_result_id, product_name, product_type,
-                     description, age_range, price_myr, amazon_url, shopee_url,
-                     lazada_url, popular_url, priority, reason, created_at, updated_at)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
+                    (child_id, tutoring_result_id, product_name, product_type, category,
+                     subject, learning_style, description, age_range, price_myr, price_range,
+                     amazon_url, shopee_url, lazada_url, popular_url, priority, reason,
+                     created_at, updated_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
                 """, (
                     child_id,
                     tutoring_result_id,
                     prod['name'],
                     prod.get('type', 'book'),
+                    prod.get('category', 'other'),
+                    prod.get('subject', 'general'),
+                    prod.get('learning_style', 'mixed'),
                     prod.get('keywords', ''),
                     prod.get('age_range', ''),
-                    prod.get('price', 0.0),
+                    price,
+                    price_range,
                     links['amazon'],
                     links['shopee'],
                     links['lazada'],
@@ -2439,6 +2468,9 @@ def tutoring_recommendations():
                [PRODUCT_START]
                Name: [Exact product name]
                Type: [book|learning_tool|stationery|toy|workbook|flashcard|game]
+               Category: [books|art_craft|math_tools|stationery|educational_toys|digital_apps|other]
+               Subject: [mathematics|english|science|social_emotional|physical_development|general]
+               Learning Style: [visual|auditory|kinesthetic|reading_writing|mixed]
                Age: [e.g., 3-5 years]
                Price: RM [estimated price, e.g., 25.90]
                Why: [1-2 sentences explaining why this helps the child]
