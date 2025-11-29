@@ -8,23 +8,12 @@
       <div class="row">
         <div class="col-12">
             <label class="form-label mt-2 fw-bold">Subject</label>
-            <select name="subject" id="subjectSelect" class="form-select" required>
+            <select name="subject" class="form-select" required>
             <option value="">-- Select Subject --</option>
             {% for subject in subjects %}
                 <option value="{{ subject }}">{{ subject }}</option>
             {% endfor %}
-            {% if subjects|length > 0 %}
-                <option value="Other">Other</option>
-            {% else %}
-                <option value="Other">Add Subject</option>
-            {% endif %}
             </select>
-        </div>
-
-        <!-- Custom subject field -->
-        <div class="col-6" id="otherSubjectField" style="display:none;">
-            <label class="form-label mt-2 fw-bold">Custom Subject</label>
-            <input type="text" name="other_subject" class="form-control" placeholder="Enter subject">
         </div>
       </div>
 
@@ -171,14 +160,6 @@ document.addEventListener('DOMContentLoaded', function() {
   const yearInput = document.getElementById("yearInput");
   if (yearInput) {
     yearInput.value = new Date().getFullYear();
-  }
-});
-
-document.getElementById("subjectSelect").addEventListener("change", function() {
-  if (this.value === "Other") {
-    document.getElementById("otherSubjectField").style.display = "block";
-  } else {
-    document.getElementById("otherSubjectField").style.display = "none";
   }
 });
 

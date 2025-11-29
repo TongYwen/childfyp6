@@ -1646,9 +1646,6 @@ def academic_progress():
 
     if request.method == "POST":
         subject = request.form.get("subject")
-        if subject == "Other":
-            subject = request.form.get("other_subject")
-
         score = request.form.get("score", type=int)
         year = request.form.get("year", type=int)
         month = request.form.get("month", type=int)
@@ -1695,7 +1692,20 @@ def academic_progress():
     for row in scores:
         row["date_str"] = row["date"].strftime("%Y-%m")
 
-    subjects = list({row["subject"] for row in scores})
+    # Define default subjects for preschool
+    default_subjects = [
+        "English",
+        "Chinese",
+        "Malay",
+        "Mathematics",
+        "Science",
+        "Drawing",
+        "Coloring"
+    ]
+
+    # Merge default subjects with user's existing subjects
+    user_subjects = {row["subject"] for row in scores}
+    subjects = default_subjects + [s for s in user_subjects if s not in default_subjects]
 
     cursor.close()
     conn.close()
