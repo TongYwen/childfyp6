@@ -89,8 +89,7 @@ def generate_product_links(keywords, product_type):
     links = {
         'amazon': f"https://www.amazon.com/s?k={search_query}",
         'shopee': f"https://shopee.com.my/search?keyword={search_query}",
-        'lazada': f"https://www.lazada.com.my/catalog/?q={search_query}",
-        'popular': f"https://www.popular.com.my/search?q={search_query}"
+        'lazada': f"https://www.lazada.com.my/catalog/?q={search_query}"
     }
 
     return links

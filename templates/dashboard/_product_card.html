@@ -77,17 +77,9 @@
 
       {% if product.amazon_url %}
       <a href="{{ product.amazon_url }}" target="_blank" rel="noopener"
-         class="btn btn-sm btn-outline-secondary mb-1"
+         class="btn btn-sm btn-outline-secondary"
          onclick="trackProductClick({{ product.id }}, 'amazon')">
         <i class="fa fa-amazon"></i> Buy on Amazon
-      </a>
-      {% endif %}
-
-      {% if product.popular_url %}
-      <a href="{{ product.popular_url }}" target="_blank" rel="noopener"
-         class="btn btn-sm btn-outline-info"
-         onclick="trackProductClick({{ product.id }}, 'popular')">
-        <i class="fa fa-book"></i> Buy at Popular
       </a>
       {% endif %}
     </div>
