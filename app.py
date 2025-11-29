@@ -193,9 +193,9 @@ def extract_products_from_response(full_response, child_id, cursor):
                     INSERT INTO product_recommendations
                     (child_id, tutoring_result_id, product_name, product_type, category,
                      subject, learning_style, description, age_range, price_myr, price_range,
-                     amazon_url, shopee_url, lazada_url, popular_url, priority, reason,
+                     amazon_url, shopee_url, lazada_url, priority, reason,
                      created_at, updated_at)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
                 """, (
                     child_id,
                     tutoring_result_id,
@@ -211,7 +211,6 @@ def extract_products_from_response(full_response, child_id, cursor):
                     links['amazon'],
                     links['shopee'],
                     links['lazada'],
-                    links['popular'],
                     prod.get('priority', 'medium'),
                     prod.get('why', '')
                 ))
