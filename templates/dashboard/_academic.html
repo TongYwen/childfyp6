@@ -40,7 +40,7 @@
        <div class="row">
         <div class="col-md-6">
             <label class="form-label mt-2 fw-bold">Year</label>
-            <input type="number" name="year" class="form-control" min="2000" max="2100" required>
+            <input type="number" name="year" id="yearInput" class="form-control" min="2000" max="2100" required readonly>
         </div>
         <div class="col-md-6">
             <label class="form-label mt-2 fw-bold">Month</label>
@@ -166,6 +166,14 @@
 </div>
 
 <script>
+// Set current year automatically
+document.addEventListener('DOMContentLoaded', function() {
+  const yearInput = document.getElementById("yearInput");
+  if (yearInput) {
+    yearInput.value = new Date().getFullYear();
+  }
+});
+
 document.getElementById("subjectSelect").addEventListener("change", function() {
   if (this.value === "Other") {
     document.getElementById("otherSubjectField").style.display = "block";
