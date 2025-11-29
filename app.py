@@ -1646,9 +1646,6 @@ def academic_progress():
 
     if request.method == "POST":
         subject = request.form.get("subject")
-        if subject == "Other":
-            subject = request.form.get("other_subject")
-
         score = request.form.get("score", type=int)
         year = request.form.get("year", type=int)
         month = request.form.get("month", type=int)
