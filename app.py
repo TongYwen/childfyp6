@@ -1695,23 +1695,15 @@ def academic_progress():
     for row in scores:
         row["date_str"] = row["date"].strftime("%Y-%m")
 
-    # Define default subjects
+    # Define default subjects for preschool
     default_subjects = [
-        "Mathematics",
         "English",
-        "Science",
         "Chinese",
         "Malay",
-        "History",
-        "Geography",
-        "Physics",
-        "Chemistry",
-        "Biology",
-        "Literature",
-        "Art",
-        "Music",
-        "Physical Education",
-        "Computer Science"
+        "Mathematics",
+        "Science",
+        "Drawing",
+        "Coloring"
     ]
 
     # Merge default subjects with user's existing subjects
