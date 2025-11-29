@@ -1695,7 +1695,28 @@ def academic_progress():
     for row in scores:
         row["date_str"] = row["date"].strftime("%Y-%m")
 
-    subjects = list({row["subject"] for row in scores})
+    # Define default subjects
+    default_subjects = [
+        "Mathematics",
+        "English",
+        "Science",
+        "Chinese",
+        "Malay",
+        "History",
+        "Geography",
+        "Physics",
+        "Chemistry",
+        "Biology",
+        "Literature",
+        "Art",
+        "Music",
+        "Physical Education",
+        "Computer Science"
+    ]
+
+    # Merge default subjects with user's existing subjects
+    user_subjects = {row["subject"] for row in scores}
+    subjects = default_subjects + [s for s in user_subjects if s not in default_subjects]
 
     cursor.close()
     conn.close()

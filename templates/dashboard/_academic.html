@@ -13,11 +13,7 @@
             {% for subject in subjects %}
                 <option value="{{ subject }}">{{ subject }}</option>
             {% endfor %}
-            {% if subjects|length > 0 %}
-                <option value="Other">Other</option>
-            {% else %}
-                <option value="Other">Add Subject</option>
-            {% endif %}
+            <option value="Other">Other (Custom Subject)</option>
             </select>
         </div>
 
