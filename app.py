@@ -1707,6 +1707,15 @@ def academic_progress():
     user_subjects = {row["subject"] for row in scores}
     subjects = default_subjects + [s for s in user_subjects if s not in default_subjects]
 
+    # Calculate average score for each subject
+    subject_averages = {}
+    for subject in subjects:
+        subject_scores = [row["score"] for row in scores if row["subject"] == subject]
+        if subject_scores:
+            subject_averages[subject] = round(sum(subject_scores) / len(subject_scores), 2)
+        else:
+            subject_averages[subject] = 0
+
     cursor.close()
     conn.close()
 
@@ -1716,6 +1725,7 @@ def academic_progress():
         selected_child={"id": child_id},
         scores=scores,
         subjects=subjects,
+        subject_averages=subject_averages,
         active="academic",
     )
 

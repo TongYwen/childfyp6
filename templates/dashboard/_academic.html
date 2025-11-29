@@ -53,103 +53,109 @@
 <!-- Bottom Card -->
 <div class="card shadow-sm">
   <div class="card-body">
-    {% if subjects|length == 0 %}
+    {% if scores|length == 0 %}
       <p class="text-muted text-center">No academic records yet. Please input scores above.</p>
     {% else %}
-      <ul class="nav nav-tabs" id="subjectTabs" role="tablist">
-        {% for subject in subjects %}
-        <li class="nav-item" role="presentation">
-          <button class="nav-link {% if loop.first %}active{% endif %}" id="tab-{{ subject|replace(' ','_') }}"
-                  data-bs-toggle="tab" data-bs-target="#content-{{ subject|replace(' ','_') }}" type="button" role="tab">
-            {{ subject }}
-          </button>
-        </li>
-        {% endfor %}
-      </ul>
-
-      <div class="tab-content mt-3">
-        {% for subject in subjects %}
-        <div class="tab-pane fade {% if loop.first %}show active{% endif %}" id="content-{{ subject|replace(' ','_') }}" role="tabpanel">
-          <div class="row">
-            <!-- Chart -->
-            <div class="col-md-8">
-              <canvas id="chart-{{ subject|replace(' ','_') }}"></canvas>
-            </div>
-
-            <!-- Table -->
-            <div class="col-md-4">
-              <h6>{{ subject }} Records</h6>
-              <div class="table-responsive" style="max-height:300px; overflow-y:auto;">
-                <table class="table table-sm table-bordered">
-                  <thead>
-                    <tr>
-                      <th>Date</th>
-                      <th>Score</th>
-                      <th class="text-center">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {% for row in scores if row.subject == subject %}
-                    <tr>
-                      <td>{{ row.date.strftime('%Y-%m') }}</td>
-                      <td>{{ row.score }}</td>
-                      <td class="text-center">
-                        <form method="POST" action="{{ url_for('delete_academic', id=row.id, child_id=selected_child.id) }}" style="display:inline;">
-                          <button type="submit" class="btn btn-sm btn-danger"><i class="fa-solid fa-trash"></i></button>
-                        </form>
-                      </td>
-                    </tr>
-                    {% endfor %}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-
-          <!-- Chart Script -->
-          <script>
-            new Chart(document.getElementById("chart-{{ subject|replace(' ','_') }}"), {
-            type: 'line',
-            data: {
-                labels: {{ scores
-                            |selectattr("subject","equalto",subject)
-                            |map(attribute="date_str")
-                            |list
-                            |tojson }},
-                datasets: [{
-                label: "{{ subject }}",
-                data: {{ scores
-                            |selectattr("subject","equalto",subject)
-                            |map(attribute="score")
-                            |list
-                            |tojson }},
-                borderColor: 'blue',
-                tension: 0.2,
-                fill: false
-                }]
-            },
-            options: {
-                scales: {
-                x: {
-                    title: {
-                    display: true,
-                    text: "Year-Month"
-                    }
-                },
-                y: {
-                    title: {
-                    display: true,
-                    text: "Score"
-                    },
-                    beginAtZero: true
-                }
-                }
-            }
-            });
-            </script>
+      <div class="row">
+        <!-- Bar Chart -->
+        <div class="col-md-8">
+          <h5>Average Scores by Subject</h5>
+          <canvas id="averageChart" style="max-height: 400px;"></canvas>
         </div>
-        {% endfor %}
+
+        <!-- Records Table -->
+        <div class="col-md-4">
+          <h5>All Records</h5>
+          <div class="table-responsive" style="max-height:400px; overflow-y:auto;">
+            <table class="table table-sm table-bordered">
+              <thead>
+                <tr>
+                  <th>Subject</th>
+                  <th>Date</th>
+                  <th>Score</th>
+                  <th class="text-center">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in scores %}
+                <tr>
+                  <td>{{ row.subject }}</td>
+                  <td>{{ row.date.strftime('%Y-%m') }}</td>
+                  <td>{{ row.score }}</td>
+                  <td class="text-center">
+                    <form method="POST" action="{{ url_for('delete_academic', id=row.id, child_id=selected_child.id) }}" style="display:inline;">
+                      <button type="submit" class="btn btn-sm btn-danger"><i class="fa-solid fa-trash"></i></button>
+                    </form>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
+
+      <!-- Chart Script -->
+      <script>
+        new Chart(document.getElementById("averageChart"), {
+          type: 'bar',
+          data: {
+            labels: {{ subjects|tojson }},
+            datasets: [{
+              label: "Average Score",
+              data: [
+                {% for subject in subjects %}
+                  {{ subject_averages[subject] }}{{ "," if not loop.last else "" }}
+                {% endfor %}
+              ],
+              backgroundColor: [
+                'rgba(255, 99, 132, 0.7)',
+                'rgba(54, 162, 235, 0.7)',
+                'rgba(255, 206, 86, 0.7)',
+                'rgba(75, 192, 192, 0.7)',
+                'rgba(153, 102, 255, 0.7)',
+                'rgba(255, 159, 64, 0.7)',
+                'rgba(99, 255, 132, 0.7)'
+              ],
+              borderColor: [
+                'rgba(255, 99, 132, 1)',
+                'rgba(54, 162, 235, 1)',
+                'rgba(255, 206, 86, 1)',
+                'rgba(75, 192, 192, 1)',
+                'rgba(153, 102, 255, 1)',
+                'rgba(255, 159, 64, 1)',
+                'rgba(99, 255, 132, 1)'
+              ],
+              borderWidth: 2
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            scales: {
+              y: {
+                beginAtZero: true,
+                max: 100,
+                title: {
+                  display: true,
+                  text: "Average Score"
+                }
+              },
+              x: {
+                title: {
+                  display: true,
+                  text: "Subject"
+                }
+              }
+            },
+            plugins: {
+              legend: {
+                display: false
+              }
+            }
+          }
+        });
+      </script>
     {% endif %}
   </div>
 </div>
@@ -160,17 +166,6 @@ document.addEventListener('DOMContentLoaded', function() {
   const yearInput = document.getElementById("yearInput");
   if (yearInput) {
     yearInput.value = new Date().getFullYear();
-  }
-});
-
-document.addEventListener('shown.bs.tab', function (event) {
-  const tabId = event.target.getAttribute('data-bs-target');
-  const canvas = document.querySelector(tabId + ' canvas');
-  if (canvas) {
-    const chart = Chart.getChart(canvas);
-    if (chart) {
-      chart.resize();
-    }
   }
 });
 </script>
