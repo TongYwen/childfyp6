@@ -34,19 +34,10 @@
       {% endif %}
     </div>
 
-    <!-- Age Range & Price -->
+    <!-- Age Range -->
     <div class="mb-2">
       {% if product.age_range %}
       <small class="text-muted"><i class="fa fa-child"></i> Age: {{ product.age_range }}</small>
-      {% endif %}
-      {% if product.price_myr %}
-      <small class="text-success ms-2">
-        <i class="fa fa-tag"></i> RM {{ "%.2f"|format(product.price_myr) }}
-        {% if product.price_range == 'budget' %}💰
-        {% elif product.price_range == 'mid_range' %}💵
-        {% elif product.price_range == 'premium' %}💎
-        {% endif %}
-      </small>
       {% endif %}
     </div>
 

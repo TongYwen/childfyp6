@@ -71,11 +71,6 @@
           By Learning Style
         </button>
       </li>
-      <li class="nav-item" role="presentation">
-        <button class="nav-link" id="price-tab" data-bs-toggle="pill" data-bs-target="#by-price" type="button" role="tab">
-          By Price
-        </button>
-      </li>
     </ul>
 
     <!-- Tab Content -->
@@ -101,13 +96,10 @@
           <!-- Product Name -->
           <h6 class="fw-bold mb-2">{{ product.product_name }}</h6>
 
-          <!-- Age Range & Price -->
+          <!-- Age Range -->
           <div class="mb-2">
             {% if product.age_range %}
             <small class="text-muted"><i class="fa fa-child"></i> Age: {{ product.age_range }}</small>
-            {% endif %}
-            {% if product.price_myr %}
-            <small class="text-success ms-2"><i class="fa fa-tag"></i> RM {{ "%.2f"|format(product.price_myr) }}</small>
             {% endif %}
           </div>
 
@@ -191,22 +183,6 @@
           <h6 class="mt-3 mb-2 text-secondary">{{ style_name }} ({{ style_products|length }})</h6>
           <div class="row">
             {% for product in style_products %}
-              {% include 'dashboard/_product_card.html' %}
-            {% endfor %}
-          </div>
-          {% endif %}
-        {% endfor %}
-      </div>
-
-      <!-- By Price Tab -->
-      <div class="tab-pane fade" id="by-price" role="tabpanel">
-        {% set price_ranges = {'budget': '💰 Budget-Friendly (RM 0-20)', 'mid_range': '💵 Mid-Range (RM 21-50)', 'premium': '💎 Premium (RM 51+)'} %}
-        {% for price_key, price_name in price_ranges.items() %}
-          {% set price_products = products|selectattr('price_range', 'equalto', price_key)|list %}
-          {% if price_products|length > 0 %}
-          <h6 class="mt-3 mb-2 text-secondary">{{ price_name }} ({{ price_products|length }})</h6>
-          <div class="row">
-            {% for product in price_products %}
               {% include 'dashboard/_product_card.html' %}
             {% endfor %}
           </div>
