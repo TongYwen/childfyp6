@@ -138,16 +138,22 @@
                         <div class="row">
                           <div class="col-md-4 mb-3">
                             <label class="form-label">Age</label>
-                            <input type="number" name="age" value="{{ child.age }}" class="form-control" min="1" max="6" required>
+                            <select name="age" class="form-select" required>
+                <option value="">Select Age</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+                <option value="5">5</option>
+                <option value="6">6</option>
+              </select>
                           </div>
                           <div class="col-md-4 mb-3">
                             <label class="form-label">Grade Level</label>
-                            <input type="text" name="grade_level" value="{{ child.grade_level }}" class="form-control"
-                                   pattern="[A-Za-z0-9\s-]+"
-                                   title="Only letters, numbers, hyphens, and spaces allowed (e.g., A, K1, Pre-K)"
-                                   maxlength="20"
-                                   placeholder="e.g., A, K1, Pre-K"
-                                   required>
+                            <select name="grade_level" class="form-select" required>
+                <option value="">Select Grade</option>
+                <option value="NURSERY">Nursery (Ages 3)</option>
+                <option value="K1">K1 (Ages 4)</option>
+                <option value="K2">K2 (Ages 5-6)</option>
+              </select>
                           </div>
                           <div class="col-md-4 mb-3">
                             <label class="form-label">Gender</label>
@@ -268,11 +274,23 @@
           <div class="row">
             <div class="col-md-4 mb-3">
               <label class="form-label">Age</label>
-              <input type="number" name="age" class="form-control" min="0" max="6" required>
+              <select name="age" class="form-select" required>
+                <option value="">Select Age</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+                <option value="5">5</option>
+                <option value="6">6</option>
+              </select>
             </div>
             <div class="col-md-4 mb-3">
               <label class="form-label">Grade Level</label>
-              <input type="text" name="grade_level" class="form-control" required>
+               <select name="grade_level" class="form-select" required>
+                <option value="">Select Grade</option>
+                <option value="NURSERY">Nursery (Ages 3)</option>
+                <option value="K1">K1 (Ages 4)</option>
+                <option value="K2">K2 (Ages 5-6)</option>
+              </select>
+
             </div>
             <div class="col-md-4 mb-3">
               <label class="form-label">Gender</label>
@@ -301,6 +319,73 @@
 
 <script>
 document.addEventListener("DOMContentLoaded", function () {
+  // Auto-select grade level based on age
+   // Auto-select grade level based on age using event delegation
+
+  // Age to grade mapping (for 3-6 year olds)
+
+  const ageToGrade = {
+
+    '3': 'NURSERY',
+
+    '4': 'K1',
+
+    '5': 'K2',
+
+    '6': 'K2'  // Age 6 is still K2
+
+  };
+
+ 
+
+  // Use event delegation on document to catch all age dropdown changes
+
+  document.addEventListener('change', function(e) {
+
+    // Check if the changed element is an age select
+
+    if (e.target && e.target.matches('select[name="age"]')) {
+
+      const selectedAge = e.target.value;
+
+ 
+
+      // Find the corresponding grade level dropdown in the same form
+
+      const form = e.target.closest('form');
+
+      if (form) {
+
+        const gradeSelect = form.querySelector('select[name="grade_level"]');
+
+        if (gradeSelect && selectedAge in ageToGrade) {
+
+          gradeSelect.value = ageToGrade[selectedAge];
+
+ 
+
+          // Add visual feedback
+
+          gradeSelect.style.transition = 'background-color 0.3s';
+
+          gradeSelect.style.backgroundColor = '#e8f5e9';
+
+          setTimeout(() => {
+
+            gradeSelect.style.backgroundColor = '';
+
+          }, 500);
+
+        }
+
+      }
+
+    }
+
+  });
+
+// Initialize age-grade sync
+setupAgeGradeSync();
 
   // Child search filter
   const search = document.getElementById("childSearch");
