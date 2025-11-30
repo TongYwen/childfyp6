@@ -38,6 +38,185 @@
   </div>
 </div>
 
+<!-- Recommended Learning Materials Section -->
+{% if products and products|length > 0 %}
+<div class="card shadow-sm mb-4" id="productsCard">
+  <div class="card-body">
+    <h5 class="card-title mb-3">
+      <i class="fa fa-shopping-cart text-primary"></i> Recommended Learning Materials
+    </h5>
+    <p class="text-muted small">
+      Based on your child's learning profile, we recommend these educational products:
+    </p>
+
+    <!-- Filter Tabs -->
+    <ul class="nav nav-pills mb-3" id="productFilterTabs" role="tablist">
+      <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="all-tab" data-bs-toggle="pill" data-bs-target="#all-products" type="button" role="tab">
+          All Products ({{ products|length }})
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="category-tab" data-bs-toggle="pill" data-bs-target="#by-category" type="button" role="tab">
+          By Category
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="subject-tab" data-bs-toggle="pill" data-bs-target="#by-subject" type="button" role="tab">
+          By Subject
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="learning-style-tab" data-bs-toggle="pill" data-bs-target="#by-learning-style" type="button" role="tab">
+          By Learning Style
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="price-tab" data-bs-toggle="pill" data-bs-target="#by-price" type="button" role="tab">
+          By Price
+        </button>
+      </li>
+    </ul>
+
+    <!-- Tab Content -->
+    <div class="tab-content" id="productFilterTabsContent">
+      <!-- All Products Tab -->
+      <div class="tab-pane fade show active" id="all-products" role="tabpanel">
+        <div class="row" id="productsContainer">
+          {% for product in products %}
+          <div class="col-md-6 mb-3 product-item">
+            <div class="product-card border rounded p-3 h-100">
+          <!-- Priority Badge -->
+          <div class="d-flex justify-content-between align-items-start mb-2">
+            <span class="badge
+              {% if product.priority == 'high' %}bg-danger
+              {% elif product.priority == 'medium' %}bg-warning text-dark
+              {% else %}bg-info text-dark
+              {% endif %}">
+              {{ product.priority|upper }} PRIORITY
+            </span>
+            <span class="badge bg-secondary">{{ product.product_type|replace('_', ' ')|title }}</span>
+          </div>
+
+          <!-- Product Name -->
+          <h6 class="fw-bold mb-2">{{ product.product_name }}</h6>
+
+          <!-- Age Range & Price -->
+          <div class="mb-2">
+            {% if product.age_range %}
+            <small class="text-muted"><i class="fa fa-child"></i> Age: {{ product.age_range }}</small>
+            {% endif %}
+          </div>
+
+          <!-- Why This Product -->
+          {% if product.reason %}
+          <p class="small text-secondary mb-3">
+            <strong>Why this helps:</strong> {{ product.reason }}
+          </p>
+          {% endif %}
+
+          <!-- Purchase Buttons -->
+          <div class="btn-group-vertical w-100 purchase-buttons">
+            {% if product.shopee_url %}
+            <a href="{{ product.shopee_url }}" target="_blank" rel="noopener"
+               class="btn btn-sm btn-outline-primary mb-1"
+               onclick="trackProductClick({{ product.id }}, 'shopee')">
+              <i class="fa fa-shopping-bag"></i> Buy on Shopee
+            </a>
+            {% endif %}
+
+            {% if product.lazada_url %}
+            <a href="{{ product.lazada_url }}" target="_blank" rel="noopener"
+               class="btn btn-sm btn-outline-warning mb-1"
+               onclick="trackProductClick({{ product.id }}, 'lazada')">
+              <i class="fa fa-shopping-cart"></i> Buy on Lazada
+            </a>
+            {% endif %}
+
+            {% if product.amazon_url %}
+            <a href="{{ product.amazon_url }}" target="_blank" rel="noopener"
+               class="btn btn-sm btn-outline-secondary mb-1"
+               onclick="trackProductClick({{ product.id }}, 'amazon')">
+             <i class="fa-brands fa-amazon"></i>Buy on Amazon
+            </a>
+            {% endif %}
+            
+          </div>
+        </div>
+      </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- By Category Tab -->
+      <div class="tab-pane fade" id="by-category" role="tabpanel">
+        {% set categories = {'books': '📚 Books & Reading', 'art_craft': '🎨 Art & Craft', 'math_tools': '🔢 Math Tools', 'stationery': '✏️ Stationery', 'educational_toys': '🧩 Educational Toys', 'digital_apps': '💻 Digital Apps', 'other': '📦 Other'} %}
+        {% for cat_key, cat_name in categories.items() %}
+          {% set cat_products = products|selectattr('category', 'equalto', cat_key)|list %}
+          {% if cat_products|length > 0 %}
+          <h6 class="mt-3 mb-2 text-secondary">{{ cat_name }} ({{ cat_products|length }})</h6>
+          <div class="row">
+            {% for product in cat_products %}
+              {% include 'dashboard/_product_card.html' %}
+            {% endfor %}
+          </div>
+          {% endif %}
+        {% endfor %}
+      </div>
+
+      <!-- By Subject Tab -->
+      <div class="tab-pane fade" id="by-subject" role="tabpanel">
+        {% set subjects = {'mathematics': '🔢 Mathematics', 'english': '📖 English', 'science': '🔬 Science', 'social_emotional': '❤️ Social-Emotional', 'physical_development': '🏃 Physical Development', 'general': '🌟 General'} %}
+        {% for subj_key, subj_name in subjects.items() %}
+          {% set subj_products = products|selectattr('subject', 'equalto', subj_key)|list %}
+          {% if subj_products|length > 0 %}
+          <h6 class="mt-3 mb-2 text-secondary">{{ subj_name }} ({{ subj_products|length }})</h6>
+          <div class="row">
+            {% for product in subj_products %}
+              {% include 'dashboard/_product_card.html' %}
+            {% endfor %}
+          </div>
+          {% endif %}
+        {% endfor %}
+      </div>
+
+      <!-- By Learning Style Tab -->
+      <div class="tab-pane fade" id="by-learning-style" role="tabpanel">
+        {% set learning_styles = {'visual': '👁️ Visual Learners', 'auditory': '👂 Auditory Learners', 'kinesthetic': '🤸 Kinesthetic Learners', 'reading_writing': '📝 Reading/Writing Learners', 'mixed': '🌈 Mixed/All Styles'} %}
+        {% for style_key, style_name in learning_styles.items() %}
+          {% set style_products = products|selectattr('learning_style', 'equalto', style_key)|list %}
+          {% if style_products|length > 0 %}
+          <h6 class="mt-3 mb-2 text-secondary">{{ style_name }} ({{ style_products|length }})</h6>
+          <div class="row">
+            {% for product in style_products %}
+              {% include 'dashboard/_product_card.html' %}
+            {% endfor %}
+          </div>
+          {% endif %}
+        {% endfor %}
+      </div>
+
+      <!-- By Price Tab -->
+      <div class="tab-pane fade" id="by-price" role="tabpanel">
+        {% set price_ranges = {'budget': '💰 Budget-Friendly (RM 0-20)', 'mid_range': '💵 Mid-Range (RM 21-50)', 'premium': '💎 Premium (RM 51+)'} %}
+        {% for price_key, price_name in price_ranges.items() %}
+          {% set price_products = products|selectattr('price_range', 'equalto', price_key)|list %}
+          {% if price_products|length > 0 %}
+          <h6 class="mt-3 mb-2 text-secondary">{{ price_name }} ({{ price_products|length }})</h6>
+          <div class="row">
+            {% for product in price_products %}
+              {% include 'dashboard/_product_card.html' %}
+            {% endfor %}
+          </div>
+          {% endif %}
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+
 <script>
 document.addEventListener("DOMContentLoaded", function() {
   const regenBtn = document.getElementById("regenBtn");

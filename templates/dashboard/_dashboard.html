@@ -16,8 +16,8 @@
   <div class="col-md-6">
     <div class="card shadow-sm h-100">
       <div class="card-body">
-        <h5 class="card-title">Academic Progress</h5>
-        <canvas id="academicChart"></canvas>
+        <h5 class="card-title">Academic Progress Summary</h5>
+        <canvas id="academicChart"style="min-height: 300px;"></canvas>
       </div>
     </div>
   </div>
@@ -76,38 +76,71 @@
 document.addEventListener('DOMContentLoaded', function() {
   const academicCtx = document.getElementById('academicChart');
   if (academicCtx) {
-    // Prepare unique sorted labels
-    const labels = [...new Set([
-      {% for row in scores %}
-        '{{ row.date_str }}',
-      {% endfor %}
-    ])];
-
     const subjects = {{ subjects|tojson }};
     const allScores = {{ scores|tojson }};
 
-    const datasets = subjects.map((subject, idx) => {
-      return {
-        label: subject,
-        data: labels.map(label => {
-          const entry = allScores.find(r => r.subject === subject && r.date_str === label);
-          return entry ? entry.score : null;
-        }),
-        borderColor: `hsl(${idx * 60}, 70%, 50%)`,
-        tension: 0.3,
-        fill: false
-      };
+    // Calculate average for each subject
+    const averages = subjects.map(subject => {
+      const subjectScores = allScores.filter(r => r.subject === subject).map(r => r.score);
+      if (subjectScores.length > 0) {
+        return Math.round((subjectScores.reduce((a, b) => a + b, 0) / subjectScores.length) * 100) / 100;
+      }
+      return 0;
     });
 
     new Chart(academicCtx, {
-      type: 'line',
-      data: { labels, datasets },
+      type: 'bar',
+      data: {
+        labels: subjects,
+        datasets: [{
+          label: 'Average Score',
+          data: averages,
+          backgroundColor: [
+            'rgba(255, 99, 132, 0.7)',
+            'rgba(54, 162, 235, 0.7)',
+            'rgba(255, 206, 86, 0.7)',
+            'rgba(75, 192, 192, 0.7)',
+            'rgba(153, 102, 255, 0.7)',
+            'rgba(255, 159, 64, 0.7)',
+            'rgba(99, 255, 132, 0.7)'
+          ],
+
+          borderColor: [
+            'rgba(255, 99, 132, 1)',
+            'rgba(54, 162, 235, 1)',
+            'rgba(255, 206, 86, 1)',
+            'rgba(75, 192, 192, 1)',
+            'rgba(153, 102, 255, 1)',
+            'rgba(255, 159, 64, 1)',
+            'rgba(99, 255, 132, 1)'
+          ],
+          borderWidth: 2
+        }]
+      },
       options: {
         responsive: true,
-        plugins: { legend: { position: 'bottom' } },
-        scales: { y: { beginAtZero: true, max: 100 } }
-      }
-    });
+        maintainAspectRatio: true,
+        plugins: {
+          legend: {
+            display: false
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            max: 100,
+            title: {
+              display: true,
+              text: 'Average Score'
+            }
+          },
+          x: {
+            title: {
+              display: true,
+              text: 'Subject'
+            }
+          }
+        }
   }
 });
 </script>

@@ -1,0 +1,87 @@
+<div class="col-md-6 mb-3 product-item">
+  <div class="product-card border rounded p-3 h-100">
+    <!-- Priority Badge -->
+    <div class="d-flex justify-content-between align-items-start mb-2">
+      <span class="badge
+        {% if product.priority == 'high' %}bg-danger
+        {% elif product.priority == 'medium' %}bg-warning text-dark
+        {% else %}bg-info text-dark
+        {% endif %}">
+        {{ product.priority|upper }} PRIORITY
+      </span>
+      <span class="badge bg-secondary">{{ product.product_type|replace('_', ' ')|title }}</span>
+    </div>
+
+    <!-- Product Name -->
+    <h6 class="fw-bold mb-2">{{ product.product_name }}</h6>
+
+    <!-- Classification Badges -->
+    <div class="mb-2">
+      {% if product.category %}
+      <span class="badge bg-light text-dark me-1" title="Category">
+        <i class="fa fa-tag"></i> {{ product.category|replace('_', ' ')|title }}
+      </span>
+      {% endif %}
+      {% if product.subject %}
+      <span class="badge bg-light text-dark me-1" title="Subject">
+        <i class="fa fa-book"></i> {{ product.subject|replace('_', ' ')|title }}
+      </span>
+      {% endif %}
+      {% if product.learning_style %}
+      <span class="badge bg-light text-dark" title="Learning Style">
+        <i class="fa fa-brain"></i> {{ product.learning_style|replace('_', ' ')|title }}
+      </span>
+      {% endif %}
+    </div>
+
+    <!-- Age Range & Price -->
+    <div class="mb-2">
+      {% if product.age_range %}
+      <small class="text-muted"><i class="fa fa-child"></i> Age: {{ product.age_range }}</small>
+      {% endif %}
+      {% if product.price_myr %}
+      <small class="text-success ms-2">
+        {% if product.price_range == 'budget' %}💰
+        {% elif product.price_range == 'mid_range' %}
+        {% elif product.price_range == 'premium' %}💎
+        {% endif %}
+      </small>
+      {% endif %}
+    </div>
+
+    <!-- Why This Product -->
+    {% if product.reason %}
+    <p class="small text-secondary mb-3">
+      <strong>Why this helps:</strong> {{ product.reason }}
+    </p>
+    {% endif %}
+
+    <!-- Purchase Buttons -->
+    <div class="btn-group-vertical w-100 purchase-buttons">
+      {% if product.shopee_url %}
+      <a href="{{ product.shopee_url }}" target="_blank" rel="noopener"
+         class="btn btn-sm btn-outline-primary mb-1"
+         onclick="trackProductClick({{ product.id }}, 'shopee')">
+        <i class="fa fa-shopping-bag"></i> Buy on Shopee
+      </a>
+      {% endif %}
+
+      {% if product.lazada_url %}
+      <a href="{{ product.lazada_url }}" target="_blank" rel="noopener"
+         class="btn btn-sm btn-outline-warning mb-1"
+         onclick="trackProductClick({{ product.id }}, 'lazada')">
+        <i class="fa fa-shopping-cart"></i> Buy on Lazada
+      </a>
+      {% endif %}
+
+      {% if product.amazon_url %}
+      <a href="{{ product.amazon_url }}" target="_blank" rel="noopener"
+         class="btn btn-sm btn-outline-secondary mb-1"
+         onclick="trackProductClick({{ product.id }}, 'amazon')">
+        <i class="fa-brands fa-amazon"></i> Buy on Amazon
+      </a>
+      {% endif %}
+
+    </div>
+  </div>
+</div>

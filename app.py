@@ -76,6 +76,152 @@ def get_db_conn():
 
 
 # -------------------------------------------------
+# Product Recommendation Helpers
+# -------------------------------------------------
+def generate_product_links(keywords, product_type):
+    """
+    Generate search URLs for multiple e-commerce platforms based on keywords.
+    """
+    import urllib.parse
+
+    search_query = urllib.parse.quote_plus(keywords)
+
+    links = {
+        'amazon': f"https://www.amazon.com/s?k={search_query}",
+        'shopee': f"https://shopee.com.my/search?keyword={search_query}",
+        'lazada': f"https://www.lazada.com.my/catalog/?q={search_query}"
+    }
+
+    return links
+
+
+def extract_products_from_response(full_response, child_id, cursor):
+    """
+    Extract product recommendations from AI response and store in database.
+    Returns cleaned HTML (without product tags) and list of product dictionaries.
+    """
+    import re
+
+    # Pattern to match product blocks
+    product_pattern = r'\[PRODUCT_START\](.*?)\[PRODUCT_END\]'
+    product_matches = re.findall(product_pattern, full_response, re.DOTALL)
+
+    products = []
+    tutoring_result_id = None
+
+    for product_text in product_matches:
+        # Parse product fields
+        product_data = {}
+
+        # Extract Name
+        name_match = re.search(r'Name:\s*(.+?)(?:\n|$)', product_text)
+        if name_match:
+            product_data['name'] = name_match.group(1).strip()
+
+        # Extract Type
+        type_match = re.search(r'Type:\s*(.+?)(?:\n|$)', product_text)
+        if type_match:
+            product_data['type'] = type_match.group(1).strip().lower()
+
+        # Extract Category
+        category_match = re.search(r'Category:\s*(.+?)(?:\n|$)', product_text)
+        if category_match:
+            product_data['category'] = category_match.group(1).strip().lower()
+
+        # Extract Subject
+        subject_match = re.search(r'Subject:\s*(.+?)(?:\n|$)', product_text)
+        if subject_match:
+            product_data['subject'] = subject_match.group(1).strip().lower()
+
+        # Extract Learning Style
+        learning_style_match = re.search(r'Learning Style:\s*(.+?)(?:\n|$)', product_text)
+        if learning_style_match:
+            product_data['learning_style'] = learning_style_match.group(1).strip().lower()
+
+        # Extract Age
+        age_match = re.search(r'Age:\s*(.+?)(?:\n|$)', product_text)
+        if age_match:
+            product_data['age_range'] = age_match.group(1).strip()
+
+        # Extract Price
+        price_match = re.search(r'Price:\s*RM\s*([\d.]+)', product_text)
+        if price_match:
+            product_data['price'] = float(price_match.group(1))
+
+        # Extract Why (description)
+        why_match = re.search(r'Why:\s*(.+?)(?:\nKeywords:|$)', product_text, re.DOTALL)
+        if why_match:
+            product_data['why'] = why_match.group(1).strip()
+
+        # Extract Keywords
+        keywords_match = re.search(r'Keywords:\s*(.+?)(?:\nPriority:|$)', product_text, re.DOTALL)
+        if keywords_match:
+            product_data['keywords'] = keywords_match.group(1).strip()
+
+        # Extract Priority
+        priority_match = re.search(r'Priority:\s*(.+?)(?:\n|$)', product_text)
+        if priority_match:
+            product_data['priority'] = priority_match.group(1).strip().lower()
+
+        # Only add if we have minimum required fields
+        if 'name' in product_data and 'keywords' in product_data:
+            products.append(product_data)
+
+    # Remove product tags from HTML response
+    cleaned_html = re.sub(product_pattern, '', full_response, flags=re.DOTALL)
+
+    # Store products in database if any were found
+    if products and cursor:
+        for prod in products:
+            # Generate product links
+            links = generate_product_links(
+                prod.get('keywords', prod['name']),
+                prod.get('type', 'book')
+            )
+
+            # Calculate price range
+            price = prod.get('price', 0.0)
+            if price <= 20:
+                price_range = 'budget'
+            elif price <= 50:
+                price_range = 'mid_range'
+            else:
+                price_range = 'premium'
+
+            try:
+                cursor.execute("""
+                    INSERT INTO product_recommendations
+                    (child_id, tutoring_result_id, product_name, product_type, category,
+                     subject, learning_style, description, age_range, price_myr, price_range,
+                      amazon_url, shopee_url, lazada_url, priority, reason,
+                     created_at, updated_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
+                """, (
+                    child_id,
+                    tutoring_result_id,
+                    prod['name'],
+                    prod.get('type', 'book'),
+                    prod.get('category', 'other'),
+                    prod.get('subject', 'general'),
+                    prod.get('learning_style', 'mixed'),
+                    prod.get('keywords', ''),
+                    prod.get('age_range', ''),
+                    price,
+                    price_range,
+                    links['amazon'],
+                    links['shopee'],
+                    links['lazada'],
+                    prod.get('priority', 'medium'),
+                    prod.get('why', '')
+                ))
+            except Exception as e:
+                # Log error but continue processing
+                print(f"Error storing product: {e}")
+
+    return cleaned_html.strip(), products
+
+
+# -------------------------------------------------
 # User model for Flask-Login
 # -------------------------------------------------
 class User(UserMixin):
@@ -708,7 +854,7 @@ ChildGrowth Insights Team
             <tr>
               <td style="padding: 30px; color: #333333; font-size: 16px;">
                 <p>Hello <strong>{user_name}</strong>,</p>
-                <p><strong style="color: #dc3545; font-size: 18px;">URGENT: Your account will be deleted in {days_until_deletion} days!</strong></p>
+                <p><strong style="color: #dc3545; font-size: 18px;">URGENT: Your account will be permanently deleted in {days_until_deletion} days!</strong></p>
                 <p style="background: #f8d7da; border-left: 4px solid #dc3545; padding: 15px; margin: 20px 0;">
                   This is your <strong>final warning</strong>. Your <strong>ChildGrowth Insights</strong> account has been inactive for nearly 30 days.
                 </p>
@@ -719,7 +865,7 @@ ChildGrowth Insights Team
                   </a>
                 </p>
                 <p style="background: #fff3cd; padding: 15px; border-radius: 6px;">
-                  ⚠️ <strong>Important:</strong> Once deleted, all your children's data, assessments, and progress records will be <strong>permanently lost</strong>.
+                  ⚠️ <strong>Important:</strong> Once deleted, all your children's data, assessments, and progress records will be <strong>permanently lost</strong> and cannot be recovered.
                 </p>
                 <p>Please act now to save your account.</p>
                 <p>Best regards,<br><strong>ChildGrowth Insights Team</strong></p>
@@ -750,20 +896,13 @@ def send_deletion_confirmation_email(to_email, user_name):
     msg.body = f"""
 Hello {user_name},
 
-Your ChildGrowth Insights account has been deactivated due to 30 days of inactivity.
+Your ChildGrowth Insights account has been permanently deleted due to 30 days of inactivity.
 
-IMPORTANT: Your account can still be restored within the next 90 days!
+All your data, including children's profiles, assessments, and progress records, has been removed from our system.
 
-Your data, including children's profiles, assessments, and progress records, has been preserved and can be recovered if you contact our support team to restore your account.
+If you believe this was done in error or would like to create a new account, please contact our support team.
 
-To restore your account:
-- Contact our support team 
-- Request account restoration
-- Your account and all data will be fully restored
-
-After 90 days, the account and data will be permanently deleted and cannot be recovered.
-
-If you have any questions or would like to restore your account, please contact our support team.
+Thank you for using ChildGrowth Insights.
 
 Best regards,
 ChildGrowth Insights Team
@@ -783,94 +922,13 @@ ChildGrowth Insights Team
             </tr>
             <tr>
               <td style="padding: 30px; color: #333333; font-size: 16px;">
-                <p>Your <strong>ChildGrowth Insights</strong> account has been deactivated due to 30 days of inactivity.</p>
-                <p style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0;">
-                  <strong>⚠️ IMPORTANT:</strong> Your account can still be <strong>restored within the next 90 days!</strong>
-                </p>
-                <p>Your data, including children's profiles, assessments, and progress records, has been <strong>preserved</strong> and can be recovered if you contact our support team to restore your account.</p>
-                <p style="background: #d1ecf1; border-left: 4px solid #0dcaf0; padding: 15px; margin: 20px 0;">
-                  <strong>To restore your account:</strong><br>
-                  • Contact our support team or administrator<br>
-                  • Request account restoration<br>
-                  • Your account and all data will be fully restored
-                </p>
-                <p style="background: #f8d7da; border-left: 4px solid #dc3545; padding: 15px; margin: 20px 0;">
-                  <strong>⏰ Note:</strong> After 90 days, the account and data will be <strong>permanently deleted</strong> and cannot be recovered.
-                </p>
-
-                <p>If you have any questions or would like to restore your account, please contact our support team.</p>
-                <p>Best regards,<br><strong>ChildGrowth Insights Team</strong></p>
-              </td>
-            </tr>
-            <tr>
-              <td style="background: #f4f6f8; text-align: center; padding: 15px; font-size: 12px; color: #888888;">
-                &copy; 2025 ChildGrowth Insights. All rights reserved.
-              </td>
-            </tr>
-          </table>
-        </td>
-      </tr>
-    </table>
-  </body>
-</html>
-"""
-    mail.send(msg)
-
-def send_account_restored_email(to_email, user_name):
-    """Send notification email when an account has been restored by admin"""
-    login_url = url_for("login", _external=True)
-    msg = Message(
-        "ChildGrowth Insights - Your Account Has Been Restored",
-        recipients=[to_email]
-    )
-
-    msg.body = f"""
-
-Hello {user_name},
-Good news! Your ChildGrowth Insights account has been restored by an administrator.
-Your account is now active again and you can log in at any time:
-{login_url}
-
-All your data, including children's profiles, assessments, and progress records, has been preserved and is available for you to access.
-
-To keep your account active in the future, please remember to log in at least once every 30 days.
-
-If you have any questions, please contact our support team.
-Welcome back!
-Best regards,
-ChildGrowth Insights Team
-"""
-    msg.html = f"""
-
-<html>
-  <body style="font-family: Arial, sans-serif; background-color: #f4f6f8; margin: 0; padding: 0;">
-    <table width="100%" cellpadding="0" cellspacing="0">
-      <tr>
-        <td align="center" style="padding: 30px 0;">
-          <table width="600" cellpadding="0" cellspacing="0" style="background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
-            <tr>
-              <td style="background: #28a745; padding: 20px; text-align: center; color: #ffffff; font-size: 22px; font-weight: bold;">
-                ✅ Account Restored
-              </td>
-            </tr>
-            <tr>
-              <td style="padding: 30px; color: #333333; font-size: 16px;">
                 <p>Hello <strong>{user_name}</strong>,</p>
-                <p><strong style="color: #28a745; font-size: 18px;">Good news! Your account has been restored.</strong></p>
-                <p style="background: #d4edda; border-left: 4px solid #28a745; padding: 15px; margin: 20px 0;">
-                  Your <strong>ChildGrowth Insights</strong> account has been restored by an administrator and is now active again.
+                <p>Your <strong>ChildGrowth Insights</strong> account has been permanently deleted due to 30 days of inactivity.</p>
+                <p style="background: #e2e3e5; border-left: 4px solid #6c757d; padding: 15px; margin: 20px 0;">
+                  All your data, including children's profiles, assessments, and progress records, has been removed from our system.
                 </p>
-                <p>All your data, including children's profiles, assessments, and progress records, has been preserved and is available for you to access.</p>
-                <p style="text-align: center; margin: 30px 0;">
-                  <a href="{login_url}" style="background: #28a745; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
-                    Log In Now
-                  </a>
-                </p>
-                <p style="background: #fff3cd; padding: 15px; border-radius: 6px;">
-                  💡 <strong>Reminder:</strong> To keep your account active in the future, please log in at least once every 30 days.
-                </p>
-                <p>If you have any questions, please contact our support team.</p>
-                <p><strong>Welcome back!</strong></p>
+                <p>If you believe this was done in error or would like to create a new account, please contact our support team.</p>
+                <p>Thank you for using ChildGrowth Insights.</p>
                 <p>Best regards,<br><strong>ChildGrowth Insights Team</strong></p>
               </td>
             </tr>
@@ -887,6 +945,7 @@ ChildGrowth Insights Team
 </html>
 """
     mail.send(msg)
+
 
 def check_inactive_users():
     """
@@ -1080,7 +1139,6 @@ def permanently_delete_old_accounts():
         conn.close()
 
     return stats
-
 
 
 # -------------------------------------------------
@@ -1698,9 +1756,7 @@ def academic_progress():
         "Chinese",
         "Malay",
         "Mathematics",
-        "Science",
-        "Drawing",
-        "Coloring"
+        "Science"
     ]
 
     # Merge default subjects with user's existing subjects
@@ -1718,7 +1774,6 @@ def academic_progress():
         subjects=subjects,
         active="academic",
     )
-
 
 @app.route("/academic/delete/<int:id>", methods=["POST"])
 @login_required
@@ -2392,30 +2447,87 @@ def tutoring_recommendations():
     elif regen == "1" or not use_cached:
         try:
             prompt = f"""
-            You are an expert child education advisor.
+            You are an expert child education advisor specializing in personalized learning recommendations.
 
-            You will analyze a preschool child's development and learning style to recommend tutoring or support areas.
+            CHILD PROFILE:
+            - Name: {child['name']}
+            - Age: {child['age']} years old
+            - Grade Level: {child['grade_level'] or 'Not specified'}
 
+            BACKGROUND DATA (for your analysis only - DO NOT repeat these in your output):
             --- Preschool Development Summary ---
             {preschool_result if preschool_result else "No preschool data available."}
 
             --- Learning Style Analysis ---
             {learning_result if learning_result else "No learning style data available."}
 
-            Based on the above, identify:
-            1. The child’s potential weak areas or skills that may need support.
-            2. Subjects or developmental domains where tutoring or extra help would be most beneficial.
-            3. Personalized activity or tutoring style recommendations aligned with the learning style.
+            IMPORTANT: Use the above data to inform your recommendations, but DO NOT include or repeat
+            the Preschool Development Summary or Learning Style Analysis in your output.
 
-            Output clear, structured suggestions in HTML format:
-            - Use <ul><li> for lists.
-            - End with a short summary paragraph for parents.
-            - Avoid self-reference or disclaimers.
+            Based on your analysis of the child's profile and background data, provide ONLY these 4 sections:
+
+            1. **Potential Weak Areas**: Identify specific skills that need support
+            2. **Recommended Focus Areas**: Subjects or domains where tutoring would be most beneficial
+            3. **Personalized Activities**: Specific activities aligned with the child's learning style
+
+            4. **RECOMMENDED LEARNING MATERIALS** (IMPORTANT):
+               Recommend 3-5 SPECIFIC products (books, learning tools, stationery, toys, workbooks, flashcards, or games) that parents can purchase to support this child's learning.
+
+               Format each product like this (use this EXACT format):
+               [PRODUCT_START]
+               Name: [Exact product name]
+               Type: [book|learning_tool|stationery|toy|workbook|flashcard|game]
+               Category: [books|art_craft|math_tools|stationery|educational_toys|digital_apps|other]
+               Subject: [mathematics|english|science|social_emotional|physical_development|general]
+               Learning Style: [visual|auditory|kinesthetic|reading_writing|mixed]
+               Age: [e.g., 3-5 years]
+               Price: RM [estimated price, e.g., 25.90]
+               Why: [1-2 sentences explaining why this helps the child]
+               Keywords: [keywords for searching online, e.g., "phonics workbook kids age 5"]
+               Priority: [high|medium|low]
+               [PRODUCT_END]
+
+            OUTPUT FORMAT (HTML):
+
+            <h3>1. Potential Weak Areas</h3>
+            <ul>
+              <li>Specific skill or area that needs support</li>
+              <li>Another weak area with brief explanation</li>
+            </ul>
+
+            <h3>2. Recommended Focus Areas</h3>
+            <ul>
+              <li>Subject or domain for tutoring</li>
+              <li>Another recommended focus area</li>
+            </ul>
+
+            <h3>3. Personalized Activities</h3>
+            <ul>
+              <li>Activity aligned with learning style</li>
+              <li>Another recommended activity</li>
+            </ul>
+
+            <h3>4. Recommended Learning Materials</h3>
+            <p>Here are specific products to support {child['name']}'s learning:</p>
+
+            [Include ALL product recommendations using the [PRODUCT_START]...[PRODUCT_END] format]
+
+            <p><strong>Parent Action Plan:</strong> [2-3 sentence summary of what parents should focus on first]</p>
+
+            IMPORTANT:
+            - DO NOT include Preschool Development Summary
+            - DO NOT include Learning Style Analysis
+            - Only output the 4 sections listed above
+            - Be specific and actionable
+            - Avoid generic disclaimers
             """
 
             model = genai.GenerativeModel("gemini-2.5-flash")
             response = model.generate_content(prompt)
-            tutoring_summary = response.text.strip()
+            full_response = response.text.strip()
+
+            # Extract product recommendations
+            tutoring_summary, products = extract_products_from_response(full_response, child_id, cursor)
 
             if cached:
                 cursor.execute(
@@ -2447,6 +2559,21 @@ def tutoring_recommendations():
                 f"<p class='text-danger'>(Error generating recommendations: {e})</p>"
             )
 
+    # Fetch product recommendations for this child
+    cursor.execute("""
+        SELECT * FROM product_recommendations
+        WHERE child_id = %s
+        ORDER BY
+            CASE priority
+                WHEN 'high' THEN 1
+                WHEN 'medium' THEN 2
+                WHEN 'low' THEN 3
+            END,
+            created_at DESC
+        LIMIT 10
+    """, (child_id,))
+    products = cursor.fetchall()
+
     cursor.close()
     conn.close()
 
@@ -2460,6 +2587,7 @@ def tutoring_recommendations():
                 if last_generated
                 else None,
                 "use_cached": use_cached,
+                "products": products
             }
         )
 
@@ -2470,8 +2598,10 @@ def tutoring_recommendations():
         tutoring_summary=tutoring_summary,
         last_generated=last_generated,
         use_cached=use_cached,
+        products=products,
         active="tutoring",
     )
+
 
 
 # --- AI INSIGHTS ---
@@ -3533,12 +3663,7 @@ def admin_restore_user(user_id):
     cursor.close()
     conn.close()
 
-    # Send restoration notification email to the user
-    try:
-        send_account_restored_email(user['email'], user['name'])
-        flash(f"User {user['name']} ({user['email']}) has been successfully restored! Notification email sent.", "success")
-    except Exception as e:
-        flash(f"User {user['name']} ({user['email']}) has been restored, but email notification failed: {str(e)}", "warning")
+    flash(f"User {user['name']} ({user['email']}) has been successfully restored!", "success")
     return redirect(url_for("admin_deleted_users"))
 
 
@@ -3585,3 +3710,4 @@ if __name__ == "__main__":
     print("✅ APScheduler started - Inactive user cleanup will run daily at 2:00 AM UTC")
 
     app.run(debug=True, use_reloader=True)
+    
