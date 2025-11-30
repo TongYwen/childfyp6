@@ -136,7 +136,9 @@ document.addEventListener("DOMContentLoaded", function() {
 
     // Show loading message inside card
     loadingText.style.display = "block";
-    resultDiv.style.display = "none";
+    if (resultDiv) {
+      resultDiv.style.display = "none";
+    }
 
     try {
       const res = await fetch("/dashboard/preschool/regenerate", { method: "POST" });
@@ -168,17 +170,19 @@ document.addEventListener("DOMContentLoaded", function() {
         });
       } else if (data.success) {
         // Update the benchmark summary dynamically
-        resultDiv.innerHTML = data.benchmark_summary;
+        if (resultDiv) {
+          resultDiv.innerHTML = data.benchmark_summary;
 
-        // Update "last generated" timestamp
-        let lastGen = document.querySelector(".text-muted.small.mb-2");
-        if (lastGen) {
-          lastGen.textContent = `Last generated on ${data.last_generated}`;
-        } else {
-          const newP = document.createElement("p");
-          newP.className = "text-muted small mb-2";
-          newP.textContent = `Last generated on ${data.last_generated}`;
-          resultDiv.parentElement.insertBefore(newP, resultDiv);
+          // Update "last generated" timestamp
+          let lastGen = document.querySelector(".text-muted.small.mb-2");
+          if (lastGen) {
+            lastGen.textContent = `Last generated on ${data.last_generated}`;
+          } else {
+            const newP = document.createElement("p");
+            newP.className = "text-muted small mb-2";
+            newP.textContent = `Last generated on ${data.last_generated}`;
+            resultDiv.parentElement.insertBefore(newP, resultDiv);
+          }
         }
       }
     } catch (err) {
@@ -195,7 +199,9 @@ document.addEventListener("DOMContentLoaded", function() {
 
       // Hide loading text and show results again
       loadingText.style.display = "none";
-      resultDiv.style.display = "block";
+      if (resultDiv) {
+        resultDiv.style.display = "block";
+      }
     }
   });
 });
