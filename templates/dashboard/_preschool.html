@@ -61,7 +61,7 @@
                 </button>
               </form>
 
-              <h6 class="fw-bold">{{ record.date_str }}</h6>
+              <h6 class="fw-bold">{{ record.date }}</h6>
               <p><strong>Domain:</strong> {{ record.domain }}</p>
               <p><strong>Description:</strong> {{ record.description }}</p>
             </div>
@@ -140,16 +140,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
     try {
       const res = await fetch("/dashboard/preschool/regenerate", { method: "POST" });
-
-      if (!res.ok) {
-        console.error("HTTP error:", res.status, res.statusText);
-        const errorText = await res.text();
-        console.error("Response:", errorText);
-        throw new Error(`HTTP error! status: ${res.status}`);
-      }
-
       const data = await res.json();
-      console.log("Response data:", data);
 
       if (data.error === "token_limit") {
         Swal.fire({
@@ -182,7 +173,6 @@ document.addEventListener("DOMContentLoaded", function() {
         }
       }
     } catch (err) {
-      console.error("Fetch error:", err);
       Swal.fire({
         icon: "error",
         title: "Error",
