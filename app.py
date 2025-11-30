@@ -2024,11 +2024,16 @@ def regenerate_preschool_benchmark():
     for a in assessments:
         milestone_date = a.get("date")
         if isinstance(milestone_date, (datetime, date)):
-            milestone_dt = datetime.combine(milestone_date, datetime.min.time())
+            milestone_dt = datetime.combine(
+                milestone_date, datetime.min.time()
+            )
+            a["date_str"] = milestone_dt.strftime("%Y-%m")
         elif isinstance(milestone_date, str):
-            milestone_dt = datetime.strptime(milestone_date[:7] if len(milestone_date) >= 7 else milestone_date, "%Y-%m")
+            a["date_str"] = milestone_date[:7]
+            milestone_dt = datetime.strptime(a["date_str"], "%Y-%m")
         else:
             milestone_dt = None
+            a["date_str"] = "Unknown"
 
         a["age_months"] = (
             calculate_months_difference(dob_dt, milestone_dt)
@@ -2114,6 +2119,9 @@ def regenerate_preschool_benchmark():
         })
 
     except Exception as e:
+        print(f"Error in regenerate_preschool_benchmark: {type(e).__name__}: {str(e)}")
+        import traceback
+        traceback.print_exc()
         cursor.close()
         conn.close()
         if "quota" in str(e).lower() or "api key" in str(e).lower():
