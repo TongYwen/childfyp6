@@ -55,6 +55,245 @@ app.config['SCHEDULER_TIMEZONE'] = 'UTC'  # Set timezone
 EMAIL_REGEX = re.compile(r"^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$")
 ADMIN_PASSKEY = "child1234"
 
+# -------------- GRADE LEVEL SYSTEM --------------
+# Standardized grade levels for ages 3-6
+GRADE_LEVELS = {
+    'NURSERY': {
+        'code': 'NURSERY',
+        'name': 'Nursery',
+        'description': 'Play-based learning for ages 3-4',
+        'min_age': 3,
+        'max_age': 4,
+        'subjects': {
+            'english': {
+                'recommended': True,
+                'core': True,
+                'description': 'Basic vocabulary, colors, shapes, animals'
+            },
+            'math': {
+                'recommended': True,
+                'core': True,
+                'description': 'Counting 1-10, basic shapes, colors'
+            },
+            'chinese': {
+                'recommended': False,
+                'core': False,
+                'description': 'Optional exposure only, no formal assessment'
+            },
+            'bm': {
+                'recommended': False,
+                'core': False,
+                'description': 'Optional exposure only, no formal assessment'
+            },
+            'science': {
+                'recommended': False,
+                'core': False,
+                'description': 'Exploration only, no formal assessment'
+            }
+        }
+    },
+    'K1': {
+        'code': 'K1',
+        'name': 'Kindergarten 1 (K1)',
+        'description': 'Early academics for ages 4-5',
+        'min_age': 4,
+        'max_age': 5,
+        'subjects': {
+            'english': {
+                'recommended': True,
+                'core': True,
+                'description': 'Alphabet recognition, simple words, phonics'
+            },
+            'math': {
+                'recommended': True,
+                'core': True,
+                'description': 'Counting to 20, number recognition, basic addition'
+            },
+            'chinese': {
+                'recommended': True,
+                'core': False,
+                'description': 'Basic characters, simple words (optional)'
+            },
+            'bm': {
+                'recommended': True,
+                'core': False,
+                'description': 'Basic vocabulary, simple phrases (optional)'
+            },
+            'science': {
+                'recommended': True,
+                'core': False,
+                'description': 'Basic concepts: living things, weather, plants'
+            }
+        }
+    },
+    'K2': {
+        'code': 'K2',
+        'name': 'Kindergarten 2 (K2)',
+        'description': 'Pre-primary curriculum for ages 5-6',
+        'min_age': 5,
+        'max_age': 6,
+        'subjects': {
+            'english': {
+                'recommended': True,
+                'core': True,
+                'description': 'Reading simple sentences, writing letters/words'
+            },
+            'math': {
+                'recommended': True,
+                'core': True,
+                'description': 'Counting to 50+, addition/subtraction within 10'
+            },
+            'chinese': {
+                'recommended': True,
+                'core': True,
+                'description': 'Character recognition, simple reading, basic writing'
+            },
+            'bm': {
+                'recommended': True,
+                'core': True,
+                'description': 'Basic reading and writing, simple conversations'
+            },
+            'science': {
+                'recommended': True,
+                'core': True,
+                'description': 'Scientific observation, simple experiments, nature'
+            }
+        }
+    },
+    'GRADE1': {
+        'code': 'GRADE1',
+        'name': 'Grade 1 / Primary 1',
+        'description': 'Primary school curriculum for ages 6+',
+        'min_age': 6,
+        'max_age': 7,
+        'subjects': {
+            'english': {
+                'recommended': True,
+                'core': True,
+                'description': 'Formal reading/writing, comprehension, grammar'
+            },
+            'math': {
+                'recommended': True,
+                'core': True,
+                'description': 'Addition/subtraction mastery, intro to multiplication'
+            },
+            'chinese': {
+                'recommended': True,
+                'core': True,
+                'description': 'Formal reading/writing, character strokes, compositions'
+            },
+            'bm': {
+                'recommended': True,
+                'core': True,
+                'description': 'Formal curriculum: reading, writing, grammar'
+            },
+            'science': {
+                'recommended': True,
+                'core': True,
+                'description': 'Formal science concepts, experiments, scientific method'
+            }
+        }
+    }
+}
+
+# Mapping of common grade level inputs to standardized codes
+GRADE_LEVEL_ALIASES = {
+    'nursery': 'NURSERY',
+    'n': 'NURSERY',
+    'pre-nursery': 'NURSERY',
+    'k1': 'K1',
+    'kindergarten 1': 'K1',
+    'kinder 1': 'K1',
+    'kg1': 'K1',
+    'k2': 'K2',
+    'kindergarten 2': 'K2',
+    'kinder 2': 'K2',
+    'kg2': 'K2',
+    'grade 1': 'GRADE1',
+    'grade1': 'GRADE1',
+    'primary 1': 'GRADE1',
+    'p1': 'GRADE1',
+    '1': 'GRADE1',
+}
+
+def get_grade_level_choices():
+    """Return list of grade level choices for dropdown"""
+    return [
+        ('NURSERY', 'Nursery (Ages 3-4)'),
+        ('K1', 'Kindergarten 1 / K1 (Ages 4-5)'),
+        ('K2', 'Kindergarten 2 / K2 (Ages 5-6)'),
+        ('GRADE1', 'Grade 1 / Primary 1 (Ages 6+)')
+    ]
+
+def normalize_grade_level(grade_level_input):
+    """
+    Normalize free-text grade level input to standardized code.
+    Returns standardized code or None if invalid.
+    """
+    if not grade_level_input:
+        return None
+
+    # Clean input
+    cleaned = grade_level_input.strip().lower()
+
+    # Check if it's already a valid code
+    if cleaned.upper() in GRADE_LEVELS:
+        return cleaned.upper()
+
+    # Check aliases
+    if cleaned in GRADE_LEVEL_ALIASES:
+        return GRADE_LEVEL_ALIASES[cleaned]
+
+    return None
+
+def get_grade_level_info(grade_code):
+    """Get grade level information by code"""
+    return GRADE_LEVELS.get(grade_code)
+
+def get_recommended_subjects_for_grade(grade_code):
+    """Get list of recommended subjects for a given grade level"""
+    grade_info = get_grade_level_info(grade_code)
+    if not grade_info:
+        return []
+
+    return [
+        subject_code
+        for subject_code, subject_info in grade_info['subjects'].items()
+        if subject_info['recommended']
+    ]
+
+def is_subject_recommended_for_grade(grade_code, subject_code):
+    """Check if a subject is recommended for a specific grade level"""
+    grade_info = get_grade_level_info(grade_code)
+    if not grade_info:
+        return True  # If no grade info, allow all subjects
+
+    subject_info = grade_info['subjects'].get(subject_code)
+    if not subject_info:
+        return True  # If subject not in mapping, allow it
+
+    return subject_info['recommended']
+
+def get_grade_level_context_for_ai(grade_code):
+    """
+    Get formatted grade level context for AI prompts.
+    Returns a string describing the grade level, age range, and subject expectations.
+    """
+    grade_info = get_grade_level_info(grade_code)
+    if not grade_info:
+        return "Grade level not specified"
+
+    context = f"{grade_info['name']} ({grade_info['description']})\n"
+    context += f"Age range: {grade_info['min_age']}-{grade_info['max_age']} years\n\n"
+    context += "Subject expectations for this grade:\n"
+
+    for subject_code, subject_info in grade_info['subjects'].items():
+        if subject_info['recommended']:
+            subject_name = subject_code.upper() if subject_code != 'bm' else 'Bahasa Malaysia'
+            context += f"- {subject_name}: {subject_info['description']}\n"
+
+    return context
+
 # -------------- GEMINI + BENCHMARK SETUP --------------
 genai.configure(api_key=app.config["GOOGLE_API_KEY"])
 
@@ -312,24 +551,27 @@ def is_valid_name(name: str) -> bool:
     pattern = r"^[A-Za-z\s]+$"
     return re.match(pattern, name.strip()) is not None
 
-def is_valid_grade_level(grade_level: str) -> bool:
+def is_valid_grade_level(grade_level: str) -> tuple:
     """
-    Validate that grade level contains only alphanumeric characters and spaces.
-    No special characters like commas, periods, etc. are allowed.
-    Returns True if valid, False otherwise.
+    Validate and normalize grade level input.
+    Returns (is_valid, normalized_value, error_message) tuple.
+
+    - Accepts standardized codes: NURSERY, K1, K2, GRADE1
+    - Accepts common aliases (see GRADE_LEVEL_ALIASES)
+    - Returns normalized code if valid
     """
     if not grade_level or not grade_level.strip():
-        return False
+        return (False, None, "Grade level is required.")
 
-    # Allow only letters, numbers, and spaces (e.g., "K1", "Pre-K", "A", "Preschool")
-    # Using a simple pattern that allows letters, numbers, hyphens, and spaces
-    pattern = r"^[A-Za-z0-9\s-]+$"
+    # Try to normalize the input
+    normalized = normalize_grade_level(grade_level)
 
-    # Additional check: must be reasonable length (1-20 characters)
-    stripped = grade_level.strip()
-    if len(stripped) > 20:
-        return False
-    return re.match(pattern, stripped) is not None
+    if normalized is None:
+        # Input doesn't match any known grade level
+        valid_options = ', '.join([g['name'] for g in GRADE_LEVELS.values()])
+        return (False, None, f"Invalid grade level. Please choose from: {valid_options}")
+
+    return (True, normalized, None)
 
 def is_valid_dob(dob_str: str) -> tuple:
 
@@ -1567,28 +1809,28 @@ def add_child():
     try:
         age = int(age_input)
     except ValueError:
-        flash("Age must be a number between 1 and 6.", "danger")
+        flash("Age must be a number between 3 and 6.", "danger")
         return redirect(url_for("profile"))
 
-    if age < 1 or age > 6:
-        flash("Age must be between 1 and 6.", "danger")
+    if age < 3 or age > 6:
+        flash("Age must be between 3 and 6.", "danger")
         return redirect(url_for("profile"))
 
     # Validate name contains only alphabet letters
     if not is_valid_name(name):
         flash("Child name must contain only alphabet letters and spaces.", "danger")
         return redirect(url_for("profile"))
-    
-    # Validate grade level contains only alphanumeric characters
-    if not is_valid_grade_level(grade_level):
-        flash("Grade level must contain only letters, numbers, hyphens, and spaces (e.g., A, K1, Pre-K).", "danger")
-        return redirect(url_for("profile"))
-    
-    # Validate date of birth
-    is_valid, error_msg = is_valid_dob(dob)
-    if not is_valid:
 
-        flash(error_msg, "danger")
+    # Validate and normalize grade level
+    grade_valid, normalized_grade, grade_error = is_valid_grade_level(grade_level)
+    if not grade_valid:
+        flash(grade_error, "danger")
+        return redirect(url_for("profile"))
+
+    # Validate date of birth
+    dob_valid, dob_error = is_valid_dob(dob)
+    if not dob_valid:
+        flash(dob_error, "danger")
         return redirect(url_for("profile"))
 
     conn = get_db_conn()
@@ -1599,7 +1841,7 @@ def add_child():
         (parent_id, name, dob, age, grade_level, gender, notes)
         VALUES (%s,%s,%s,%s,%s,%s,%s)
         """,
-        (current_user.id, name, dob, age, grade_level, gender, notes),
+        (current_user.id, name, dob, age, normalized_grade, gender, notes),
     )
     conn.commit()
     cursor.close()
@@ -1639,29 +1881,30 @@ def edit_child(child_id):
     try:
         age = int(age_input)
     except ValueError:
-        flash("Age must be a number between 1 and 6.", "danger")
+        flash("Age must be a number between 3 and 6.", "danger")
         return redirect(url_for("profile"))
 
-    if age < 1 or age > 6:
-        flash("Age must be between 1 and 6.", "danger")
+    if age < 3 or age > 6:
+        flash("Age must be between 3 and 6.", "danger")
         return redirect(url_for("profile"))
 
     # Validate name contains only alphabet letters
     if not is_valid_name(name):
         flash("Child name must contain only alphabet letters and spaces.", "danger")
         return redirect(url_for("profile"))
-    # Validate grade level contains only alphanumeric characters
 
-    if not is_valid_grade_level(grade_level):
-        flash("Grade level must contain only letters, numbers, hyphens, and spaces (e.g., A, K1, Pre-K).", "danger")
+    # Validate and normalize grade level
+    grade_valid, normalized_grade, grade_error = is_valid_grade_level(grade_level)
+    if not grade_valid:
+        flash(grade_error, "danger")
         return redirect(url_for("profile"))
 
-# Validate date of birth
-    is_valid, error_msg = is_valid_dob(dob)
-    if not is_valid:
-        flash(error_msg, "danger")
+    # Validate date of birth
+    dob_valid, dob_error = is_valid_dob(dob)
+    if not dob_valid:
+        flash(dob_error, "danger")
         return redirect(url_for("profile"))
-    
+
     conn = get_db_conn()
     cursor = conn.cursor()
     cursor.execute(
@@ -1674,7 +1917,7 @@ def edit_child(child_id):
             name,
             dob,
             age,
-            grade_level,
+            normalized_grade,
             gender,
             notes,
             child_id,

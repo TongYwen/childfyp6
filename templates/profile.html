@@ -138,16 +138,23 @@
                         <div class="row">
                           <div class="col-md-4 mb-3">
                             <label class="form-label">Age</label>
-                            <input type="number" name="age" value="{{ child.age }}" class="form-control" min="1" max="6" required>
+                            <select name="age" class="form-select" required>
+                              <option value="">Select Age</option>
+                              <option value="3" {% if child.age == 3 %}selected{% endif %}>3 years</option>
+                              <option value="4" {% if child.age == 4 %}selected{% endif %}>4 years</option>
+                              <option value="5" {% if child.age == 5 %}selected{% endif %}>5 years</option>
+                              <option value="6" {% if child.age == 6 %}selected{% endif %}>6 years</option>
+                            </select>
                           </div>
                           <div class="col-md-4 mb-3">
                             <label class="form-label">Grade Level</label>
-                            <input type="text" name="grade_level" value="{{ child.grade_level }}" class="form-control"
-                                   pattern="[A-Za-z0-9\s-]+"
-                                   title="Only letters, numbers, hyphens, and spaces allowed (e.g., A, K1, Pre-K)"
-                                   maxlength="20"
-                                   placeholder="e.g., A, K1, Pre-K"
-                                   required>
+                            <select name="grade_level" class="form-select" required>
+                              <option value="">Select Grade</option>
+                              <option value="NURSERY" {% if child.grade_level == 'NURSERY' %}selected{% endif %}>Nursery (Ages 3-4)</option>
+                              <option value="K1" {% if child.grade_level == 'K1' %}selected{% endif %}>Kindergarten 1 / K1 (Ages 4-5)</option>
+                              <option value="K2" {% if child.grade_level == 'K2' %}selected{% endif %}>Kindergarten 2 / K2 (Ages 5-6)</option>
+                              <option value="GRADE1" {% if child.grade_level == 'GRADE1' %}selected{% endif %}>Grade 1 / Primary 1 (Ages 6+)</option>
+                            </select>
                           </div>
                           <div class="col-md-4 mb-3">
                             <label class="form-label">Gender</label>
@@ -268,18 +275,30 @@
           <div class="row">
             <div class="col-md-4 mb-3">
               <label class="form-label">Age</label>
-              <input type="number" name="age" class="form-control" min="0" max="6" required>
+              <select name="age" class="form-select" required>
+                <option value="">Select Age</option>
+                <option value="3">3 years</option>
+                <option value="4">4 years</option>
+                <option value="5">5 years</option>
+                <option value="6">6 years</option>
+              </select>
             </div>
             <div class="col-md-4 mb-3">
               <label class="form-label">Grade Level</label>
-              <input type="text" name="grade_level" class="form-control" required>
+              <select name="grade_level" class="form-select" required>
+                <option value="">Select Grade</option>
+                <option value="NURSERY">Nursery (Ages 3-4)</option>
+                <option value="K1">Kindergarten 1 / K1 (Ages 4-5)</option>
+                <option value="K2">Kindergarten 2 / K2 (Ages 5-6)</option>
+                <option value="GRADE1">Grade 1 / Primary 1 (Ages 6+)</option>
+              </select>
             </div>
             <div class="col-md-4 mb-3">
               <label class="form-label">Gender</label>
               <select name="gender" class="form-select" required>
                 <option value="">Select</option>
-                <option>Male</option>
-                <option>Female</option>
+                <option value="male">Male</option>
+                <option value="female">Female</option>
               </select>
             </div>
           </div>
