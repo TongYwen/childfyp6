@@ -1980,6 +1980,147 @@ def preschool_tracker():
     )
 
 
+@app.route("/dashboard/preschool/regenerate", methods=["POST"])
+@login_required
+def regenerate_preschool_benchmark():
+    child_id = session.get("selected_child")
+    if not child_id:
+        return jsonify({"error": "No child selected"}), 400
+
+    conn = get_db_conn()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute("SELECT * FROM children WHERE id=%s", (child_id,))
+    child = cursor.fetchone()
+    if not child:
+        cursor.close()
+        conn.close()
+        return jsonify({"error": "Child not found"}), 404
+
+    child_info = (
+        f"Name: {child['name']}, Gender: {child['gender']}, "
+        f"Date of Birth: {child['dob']}, Grade Level: {child['grade_level']}"
+    )
+
+    cursor.execute(
+        "SELECT * FROM preschool_assessments WHERE child_id=%s ORDER BY date DESC",
+        (child_id,),
+    )
+    assessments = cursor.fetchall()
+
+    if not assessments:
+        cursor.close()
+        conn.close()
+        return jsonify({"error": "No assessment data available"}), 400
+
+    dob = child.get("dob")
+    if isinstance(dob, (datetime, date)):
+        dob_dt = datetime.combine(dob, datetime.min.time())
+    elif isinstance(dob, str):
+        dob_dt = datetime.strptime(dob, "%Y-%m-%d")
+    else:
+        dob_dt = None
+
+    for a in assessments:
+        milestone_date = a.get("date")
+        if isinstance(milestone_date, (datetime, date)):
+            milestone_dt = datetime.combine(milestone_date, datetime.min.time())
+        elif isinstance(milestone_date, str):
+            milestone_dt = datetime.strptime(milestone_date[:7] if len(milestone_date) >= 7 else milestone_date, "%Y-%m")
+        else:
+            milestone_dt = None
+
+        a["age_months"] = (
+            calculate_months_difference(dob_dt, milestone_dt)
+            if dob_dt and milestone_dt
+            else None
+        )
+
+    try:
+        combined_text = "\n".join(
+            f"- {a['domain']}: {a['description']} (at {a['age_months']} months)"
+            for a in assessments
+        )
+
+        prompt = f"""
+        You are an early childhood development expert.
+
+        This is the data of the child: {child_info}
+
+        The following are recorded preschool milestones for a child, including their age in months when achieved:
+        {combined_text}
+
+        Based on these milestones, compare the child's development to standard age-based benchmarks in {benchmark_df.shape[0]} developmental records (see attached data sample below).
+
+        {benchmark_df.to_string(index=False)}
+
+        Summarize in clear, short language:
+        - Areas that are age-appropriate
+        - Areas that are delayed
+        - Areas that are advanced for the child's age
+
+        Follow the below rules strictly:
+        - End with a one-sentence summary of overall development progress.
+        - Provide the summary in HTML styled.
+        - Do not self introduce yourself.
+        """
+
+        model = genai.GenerativeModel("gemini-2.5-flash")
+        response = model.generate_content(prompt)
+        benchmark_summary = response.text.strip()
+
+        data_payload = json.dumps(assessments, default=str)
+
+        cursor.execute(
+            "SELECT * FROM ai_results WHERE child_id=%s AND module='preschool' LIMIT 1",
+            (child_id,),
+        )
+        ai_row = cursor.fetchone()
+
+        if ai_row:
+            cursor.execute(
+                """
+                UPDATE ai_results
+                SET data=%s, result=%s, updated_at=NOW()
+                WHERE id=%s
+                """,
+                (data_payload, benchmark_summary, ai_row["id"]),
+            )
+        else:
+            cursor.execute(
+                """
+                INSERT INTO ai_results
+                (child_id, module, data, result, created_at, updated_at)
+                VALUES (%s, %s, %s, %s, NOW(), NOW())
+                """,
+                (child_id, "preschool", data_payload, benchmark_summary),
+            )
+        conn.commit()
+
+        cursor.execute(
+            "SELECT updated_at FROM ai_results WHERE child_id=%s AND module='preschool' LIMIT 1",
+            (child_id,),
+        )
+        updated_row = cursor.fetchone()
+        last_generated = updated_row["updated_at"].strftime("%Y-%m-%d %H:%M:%S") if updated_row else None
+
+        cursor.close()
+        conn.close()
+
+        return jsonify({
+            "success": True,
+            "benchmark_summary": benchmark_summary,
+            "last_generated": last_generated
+        })
+
+    except Exception as e:
+        cursor.close()
+        conn.close()
+        if "quota" in str(e).lower() or "api key" in str(e).lower():
+            return jsonify({"error": "token_limit"}), 429
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/preschool/delete/<int:id>", methods=["POST"])
 @login_required
 def delete_preschool(id):
@@ -1989,13 +2130,21 @@ def delete_preschool(id):
 
     conn = get_db_conn()
     cursor = conn.cursor()
+
+    # Verify the record belongs to the current user's child before deleting
     cursor.execute(
-        "DELETE FROM preschool_assessments WHERE id = %s", (id,)
+        "DELETE FROM preschool_assessments WHERE id = %s AND child_id = %s",
+        (id, child_id)
     )
+
+    if cursor.rowcount == 0:
+        flash("Record not found or unauthorized.", "danger")
+    else:
+        flash("Preschool record deleted.", "success")
+
     conn.commit()
     cursor.close()
     conn.close()
-    flash("Preschool record deleted.", "success")
     return redirect(url_for("preschool_tracker"))
 
 
