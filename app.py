@@ -1825,21 +1825,54 @@ def preschool_tracker():
     )
 
     if request.method == "POST" and "domain" in request.form:
-        domain = request.form["domain"]
-        description = request.form["description"]
-        form_date = request.form["date"]
+        domain = request.form.get("domain", "").strip()
+        description = request.form.get("description", "").strip()
+        form_date = request.form.get("date", "").strip()
+
+        # Server-side validation
+        valid_domains = [
+            "Social/Emotional Milestones",
+            "Cognitive Milestones",
+            "Language/Communication",
+            "Movement/Physical Development"
+        ]
+
+        if not domain or domain not in valid_domains:
+            flash("Invalid domain selected.", "danger")
+            cursor.close()
+            conn.close()
+            return redirect(url_for("preschool_tracker"))
+
+        if not description or len(description) > 500:
+            flash("Description is required and must be less than 500 characters.", "danger")
+            cursor.close()
+            conn.close()
+            return redirect(url_for("preschool_tracker"))
+
+        if not form_date:
+            flash("Date is required.", "danger")
+            cursor.close()
+            conn.close()
+            return redirect(url_for("preschool_tracker"))
+
         formatted_date = f"{form_date}-01"
 
-        cursor.execute(
-            """
-            INSERT INTO preschool_assessments (child_id, domain, description, date)
-            VALUES (%s, %s, %s, %s)
-            """,
-            (child_id, domain, description, formatted_date),
-        )
-        conn.commit()
-        cursor.close()
-        conn.close()
+        try:
+            cursor.execute(
+                """
+                INSERT INTO preschool_assessments (child_id, domain, description, date)
+                VALUES (%s, %s, %s, %s)
+                """,
+                (child_id, domain, description, formatted_date),
+            )
+            conn.commit()
+            flash("Assessment added successfully.", "success")
+        except Exception as e:
+            conn.rollback()
+            flash(f"Error adding assessment: {str(e)}", "danger")
+        finally:
+            cursor.close()
+            conn.close()
         return redirect(url_for("preschool_tracker"))
 
     cursor.execute(
@@ -1899,71 +1932,84 @@ def preschool_tracker():
             use_cached = True
         else:
             try:
-                combined_text = "\n".join(
-                    f"- {a['domain']}: {a['description']} (at {a['age_months']} months)"
-                    for a in assessments
-                )
+                # Filter out assessments with None age_months to avoid "None months" in AI prompt
+                valid_assessments = [a for a in assessments if a.get('age_months') is not None]
 
-                prompt = f"""
-                You are an early childhood development expert.
-
-                This is the data of the child: {child_info}
-
-                The following are recorded preschool milestones for a child, including their age in months when achieved:
-                {combined_text}
-
-                Based on these milestones, compare the child's development to standard age-based benchmarks in {benchmark_df.shape[0]} developmental records (see attached data sample below).
-
-                {benchmark_df.to_string(index=False)}
-
-                Summarize in clear, short language:
-                - Areas that are age-appropriate
-                - Areas that are delayed
-                - Areas that are advanced for the child's age
-
-                Follow the below rules strictly:
-                - End with a one-sentence summary of overall development progress.
-                - Provide the summary in HTML styled.
-                - Do not self introduce yourself.
-                """
-
-                model = genai.GenerativeModel("gemini-2.5-flash")
-                response = model.generate_content(prompt)
-                benchmark_summary = response.text.strip()
-
-                if ai_row:
-                    cursor.execute(
-                        """
-                        UPDATE ai_results
-                        SET data=%s, result=%s, updated_at=NOW()
-                        WHERE id=%s
-                        """,
-                        (data_payload, benchmark_summary, ai_row["id"]),
+                if not valid_assessments:
+                    benchmark_summary = (
+                        "<p class='text-muted'>Unable to generate benchmark analysis. "
+                        "Please ensure the child's date of birth is set correctly.</p>"
                     )
                 else:
-                    cursor.execute(
-                        """
-                        INSERT INTO ai_results
-                        (child_id, module, data, result, created_at, updated_at)
-                        VALUES (%s, %s, %s, %s, NOW(), NOW())
-                        """,
-                        (
-                            child_id,
-                            "preschool",
-                            data_payload,
-                            benchmark_summary,
-                        ),
+                    combined_text = "\n".join(
+                        f"- {a['domain']}: {a['description']} (at {a['age_months']} months)"
+                        for a in valid_assessments
                     )
-                conn.commit()
+
+                    prompt = f"""
+                    You are an early childhood development expert.
+
+                    This is the data of the child: {child_info}
+
+                    The following are recorded preschool milestones for a child, including their age in months when achieved:
+                    {combined_text}
+
+                    Based on these milestones, compare the child's development to standard age-based benchmarks in {benchmark_df.shape[0]} developmental records (see attached data sample below).
+
+                    {benchmark_df.to_string(index=False)}
+
+                    Summarize in clear, short language:
+                    - Areas that are age-appropriate
+                    - Areas that are delayed
+                    - Areas that are advanced for the child's age
+
+                    Follow the below rules strictly:
+                    - End with a one-sentence summary of overall development progress.
+                    - Provide the summary in HTML styled.
+                    - Do not self introduce yourself.
+                    """
+
+                    model = genai.GenerativeModel("gemini-2.5-flash")
+                    response = model.generate_content(prompt)
+                    benchmark_summary = response.text.strip()
+
+                    if ai_row:
+                        cursor.execute(
+                            """
+                            UPDATE ai_results
+                            SET data=%s, result=%s, updated_at=NOW()
+                            WHERE id=%s
+                            """,
+                            (data_payload, benchmark_summary, ai_row["id"]),
+                        )
+                    else:
+                        cursor.execute(
+                            """
+                            INSERT INTO ai_results
+                            (child_id, module, data, result, created_at, updated_at)
+                            VALUES (%s, %s, %s, %s, NOW(), NOW())
+                            """,
+                            (
+                                child_id,
+                                "preschool",
+                                data_payload,
+                                benchmark_summary,
+                            ),
+                        )
+                    conn.commit()
 
             except Exception as e:
                 if "quota" in str(e).lower() or "api key" in str(e).lower():
-                    cursor.close()
-                    conn.close()
-                    return jsonify({"error": "token_limit"})
-                benchmark_summary = (
-                    f"<p class='text-danger'>(Error generating analysis: {e})</p>"
-                )
+                    benchmark_summary = (
+                        "<p class='text-danger'>Your Google AI key has reached its usage limit or expired. "
+                        "Please update your API key in Settings.</p>"
+                    )
+                else:
+                    # Use HTML escaping to prevent HTML injection
+                    from markupsafe import escape
+                    benchmark_summary = (
+                        f"<p class='text-danger'>(Error generating analysis: {escape(str(e))})</p>"
+                    )
 
     cursor.close()
     conn.close()
@@ -2042,9 +2088,17 @@ def regenerate_preschool_benchmark():
         )
 
     try:
+        # Filter out assessments with None age_months to avoid "None months" in AI prompt
+        valid_assessments = [a for a in assessments if a.get('age_months') is not None]
+
+        if not valid_assessments:
+            cursor.close()
+            conn.close()
+            return jsonify({"error": "Unable to generate benchmark analysis. Please ensure the child's date of birth is set correctly."}), 400
+
         combined_text = "\n".join(
             f"- {a['domain']}: {a['description']} (at {a['age_months']} months)"
-            for a in assessments
+            for a in valid_assessments
         )
 
         prompt = f"""
@@ -2107,7 +2161,7 @@ def regenerate_preschool_benchmark():
             (child_id,),
         )
         updated_row = cursor.fetchone()
-        last_generated = updated_row["updated_at"].strftime("%Y-%m-%d %H:%M:%S") if updated_row else None
+        last_generated = updated_row["updated_at"].strftime("%Y-%m-%d %H:%M:%S") if updated_row and updated_row["updated_at"] else None
 
         cursor.close()
         conn.close()
@@ -2139,20 +2193,26 @@ def delete_preschool(id):
     conn = get_db_conn()
     cursor = conn.cursor()
 
-    # Verify the record belongs to the current user's child before deleting
-    cursor.execute(
-        "DELETE FROM preschool_assessments WHERE id = %s AND child_id = %s",
-        (id, child_id)
-    )
+    try:
+        # Verify the record belongs to the current user's child before deleting
+        cursor.execute(
+            "DELETE FROM preschool_assessments WHERE id = %s AND child_id = %s",
+            (id, child_id)
+        )
 
-    if cursor.rowcount == 0:
-        flash("Record not found or unauthorized.", "danger")
-    else:
-        flash("Preschool record deleted.", "success")
+        if cursor.rowcount == 0:
+            flash("Record not found or unauthorized.", "danger")
+        else:
+            flash("Preschool record deleted.", "success")
 
-    conn.commit()
-    cursor.close()
-    conn.close()
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        flash(f"Error deleting record: {str(e)}", "danger")
+    finally:
+        cursor.close()
+        conn.close()
+
     return redirect(url_for("preschool_tracker"))
 
 
