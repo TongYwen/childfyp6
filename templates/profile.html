@@ -321,6 +321,43 @@
 <script>
 document.addEventListener("DOMContentLoaded", function () {
 
+  // Auto-select grade level based on age
+  function setupAgeGradeSync() {
+    // Age to grade mapping
+    const ageToGrade = {
+      '3': 'NURSERY',
+      '4': 'K1',
+      '5': 'K2',
+      '6': 'GRADE1'
+    };
+
+    // Find all age dropdowns and set up listeners
+    document.querySelectorAll('select[name="age"]').forEach(ageSelect => {
+      ageSelect.addEventListener('change', function() {
+        const selectedAge = this.value;
+
+        // Find the corresponding grade level dropdown in the same form
+        const form = this.closest('form');
+        if (form) {
+          const gradeSelect = form.querySelector('select[name="grade_level"]');
+          if (gradeSelect && selectedAge in ageToGrade) {
+            gradeSelect.value = ageToGrade[selectedAge];
+
+            // Optional: Add a subtle visual feedback
+            gradeSelect.style.transition = 'background-color 0.3s';
+            gradeSelect.style.backgroundColor = '#e8f5e9';
+            setTimeout(() => {
+              gradeSelect.style.backgroundColor = '';
+            }, 500);
+          }
+        }
+      });
+    });
+  }
+
+  // Initialize age-grade sync
+  setupAgeGradeSync();
+
   // Child search filter
   const search = document.getElementById("childSearch");
   if (search) {
