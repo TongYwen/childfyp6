@@ -163,9 +163,9 @@ GRADE_LEVELS = {
     'GRADE1': {
         'code': 'GRADE1',
         'name': 'Grade 1 / Primary 1',
-        'description': 'Primary school curriculum for ages 6+',
-        'min_age': 6,
-        'max_age': 7,
+        'description': 'Primary school curriculum for ages 7+',
+        'min_age': 7,
+        'max_age': 8,
         'subjects': {
             'english': {
                 'recommended': True,
@@ -222,7 +222,7 @@ def get_grade_level_choices():
         ('NURSERY', 'Nursery (Ages 3-4)'),
         ('K1', 'Kindergarten 1 / K1 (Ages 4-5)'),
         ('K2', 'Kindergarten 2 / K2 (Ages 5-6)'),
-        ('GRADE1', 'Grade 1 / Primary 1 (Ages 6+)')
+        ('GRADE1', 'Grade 1 / Primary 1 (Ages 7+)')
     ]
 
 def normalize_grade_level(grade_level_input):

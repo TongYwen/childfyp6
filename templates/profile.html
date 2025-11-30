@@ -153,7 +153,7 @@
                               <option value="NURSERY" {% if child.grade_level == 'NURSERY' %}selected{% endif %}>Nursery (Ages 3-4)</option>
                               <option value="K1" {% if child.grade_level == 'K1' %}selected{% endif %}>Kindergarten 1 / K1 (Ages 4-5)</option>
                               <option value="K2" {% if child.grade_level == 'K2' %}selected{% endif %}>Kindergarten 2 / K2 (Ages 5-6)</option>
-                              <option value="GRADE1" {% if child.grade_level == 'GRADE1' %}selected{% endif %}>Grade 1 / Primary 1 (Ages 6+)</option>
+                              <option value="GRADE1" {% if child.grade_level == 'GRADE1' %}selected{% endif %}>Grade 1 / Primary 1 (Ages 7+)</option>
                             </select>
                           </div>
                           <div class="col-md-4 mb-3">
@@ -290,7 +290,7 @@
                 <option value="NURSERY">Nursery (Ages 3-4)</option>
                 <option value="K1">Kindergarten 1 / K1 (Ages 4-5)</option>
                 <option value="K2">Kindergarten 2 / K2 (Ages 5-6)</option>
-                <option value="GRADE1">Grade 1 / Primary 1 (Ages 6+)</option>
+                <option value="GRADE1">Grade 1 / Primary 1 (Ages 7+)</option>
               </select>
             </div>
             <div class="col-md-4 mb-3">
@@ -323,12 +323,12 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // Auto-select grade level based on age
   function setupAgeGradeSync() {
-    // Age to grade mapping
+    // Age to grade mapping (for 3-6 year olds)
     const ageToGrade = {
       '3': 'NURSERY',
       '4': 'K1',
       '5': 'K2',
-      '6': 'GRADE1'
+      '6': 'K2'  // Age 6 is still K2
     };
 
     // Find all age dropdowns and set up listeners
