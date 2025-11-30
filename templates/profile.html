@@ -140,19 +140,19 @@
                             <label class="form-label">Age</label>
                             <select name="age" class="form-select" required>
                 <option value="">Select Age</option>
-                <option value="3">3</option>
-                <option value="4">4</option>
-                <option value="5">5</option>
-                <option value="6">6</option>
+                <option value="3" {% if child.age == 3 %}selected{% endif %}>3</option>
+                <option value="4" {% if child.age == 4 %}selected{% endif %}>4</option>
+                <option value="5" {% if child.age == 5 %}selected{% endif %}>5</option>
+                <option value="6" {% if child.age == 6 %}selected{% endif %}>6</option>
               </select>
                           </div>
                           <div class="col-md-4 mb-3">
                             <label class="form-label">Grade Level</label>
                             <select name="grade_level" class="form-select" required>
                 <option value="">Select Grade</option>
-                <option value="NURSERY">Nursery (Ages 3)</option>
-                <option value="K1">K1 (Ages 4)</option>
-                <option value="K2">K2 (Ages 5-6)</option>
+                <option value="NURSERY" {% if child.grade_level == 'NURSERY' %}selected{% endif %}>Nursery (Ages 3)</option>
+                <option value="K1" {% if child.grade_level == 'K1' %}selected{% endif %}>K1 (Ages 4)</option>
+                <option value="K2" {% if child.grade_level == 'K2' %}selected{% endif %}>K2 (Ages 5-6)</option>
               </select>
                           </div>
                           <div class="col-md-4 mb-3">
@@ -383,9 +383,6 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
   });
-
-// Initialize age-grade sync
-setupAgeGradeSync();
 
   // Child search filter
   const search = document.getElementById("childSearch");
